@@ -143,3 +143,54 @@ textarea {
     padding-bottom: calc(1rem + env(safe-area-inset-bottom));
   }
 }
+
+
+/* Database-controlled RT Crackers theme bridge. The portfolio palette is the baseline; the page background is intentionally a mild red tint. */
+:root { --rtc-background:#fff8f5; --rtc-surface:#fffaf7; --rtc-text:#241716; --rtc-primary:#d92d27; --rtc-accent:#e7ad21; --rtc-border:#ead8d1; }
+html.light body { background: var(--rtc-background) !important; color: var(--rtc-text) !important; }
+html.light main, html.light section { background-color: transparent; }
+html.light [class*="bg-[#faf7f2]"] { background-color: var(--rtc-background) !important; }
+html.light [class*="bg-white"] { background-color: var(--rtc-surface) !important; }
+/* Palette bridge for existing utility-class components. */
+html.light [class~="bg-red-600"], html.light [class~="bg-red-500"] { background-color: var(--rtc-primary) !important; }
+html.light [class~="bg-amber-500"], html.light [class~="bg-amber-600"] { background-color: var(--rtc-accent) !important; }
+html.light [class~="border-amber-600"], html.light [class~="border-red-600"] { border-color: var(--rtc-primary) !important; }
+html.light [class~="text-red-600"], html.light [class~="text-red-500"] { color: var(--rtc-primary) !important; }
+html.light [class~="text-amber-400"], html.light [class~="text-amber-500"] { color: var(--rtc-accent) !important; }
+
+
+/* PWA installation prompt: deliberately top-center so it is visible on first open. */
+.pwa-install-popup {
+  position: fixed;
+  top: .75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  width: min(680px, calc(100vw - 1.25rem));
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .8rem .9rem;
+  border: 1px solid rgba(217,45,39,.28);
+  border-radius: 1rem;
+  background: rgba(255,250,247,.97);
+  color: #241716;
+  box-shadow: 0 18px 50px rgba(61,10,8,.2);
+  backdrop-filter: blur(16px);
+}
+.pwa-install-icon { flex:0 0 auto; width:2.35rem; height:2.35rem; border-radius:.7rem; display:grid; place-items:center; color:#fff; background:linear-gradient(135deg,#d92d27,#f4b942); }
+.pwa-install-popup strong { display:block; font-size:.9rem; font-weight:900; }
+.pwa-install-popup p { margin:.15rem 0 0; font-size:.72rem; line-height:1.35; color:#756a67; }
+.pwa-install-action { flex:0 0 auto; display:inline-flex; align-items:center; gap:.35rem; border:0; border-radius:.7rem; padding:.55rem .8rem; background:#d92d27; color:#fff; font-size:.72rem; font-weight:900; cursor:pointer; }
+.pwa-install-close { flex:0 0 auto; width:2rem; height:2rem; border-radius:999px; display:grid; place-items:center; border:1px solid #ead8d1; background:#fff; color:#5a4541; cursor:pointer; }
+.caged-dragon-ad { position:fixed; right:1rem; bottom:1rem; z-index:80; width:min(290px,calc(100vw - 2rem)); display:flex; align-items:center; gap:.7rem; padding:.8rem .85rem; border-radius:1rem; border:1px solid rgba(244,185,66,.48); background:linear-gradient(135deg,#35070a,#641014); color:#fff; box-shadow:0 16px 40px rgba(41,4,5,.35); }
+.caged-dragon-mark { width:2.2rem; height:2.2rem; flex:0 0 auto; display:grid; place-items:center; border-radius:.65rem; background:#f4b942; color:#3a0a0d; }
+.caged-dragon-kicker { display:block; font-size:.58rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:#ffd66b; }
+.caged-dragon-ad strong { display:block; font-size:.92rem; font-weight:900; }
+.caged-dragon-ad small { display:block; margin-top:.08rem; font-size:.62rem; color:#f5d8d0; }
+.caged-dragon-close { position:absolute; right:-.35rem; top:-.35rem; width:1.45rem; height:1.45rem; display:grid; place-items:center; border:1px solid rgba(255,255,255,.35); border-radius:999px; background:#240608; color:#fff; cursor:pointer; }
+@media (max-width:639px) {
+  .pwa-install-popup { top:.5rem; padding:.7rem; gap:.55rem; }
+  .pwa-install-action { padding:.5rem .65rem; }
+  .caged-dragon-ad { right:.6rem; bottom:.65rem; width:245px; }
+}

@@ -10,7 +10,7 @@ interface HeroProps {
 export const Hero: React.FC<HeroProps> = ({ onExploreCatalog, onExploreTable }) => {
   const { storeInfo: STORE_INFO } = useStore();
   return (
-    <section className="relative overflow-hidden bg-stone-950 border-b border-stone-800">
+    <section data-rtc-component="hero" className="relative overflow-hidden bg-stone-950 border-b border-stone-800">
       {/* Background Image with Contrast Scrim */}
       <div className="absolute inset-0 z-0">
         <img
@@ -41,11 +41,11 @@ export const Hero: React.FC<HeroProps> = ({ onExploreCatalog, onExploreTable }) 
           </div>
 
           {/* Headline */}
-          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.08] text-balance mb-6">
+          <h1 data-rtc-component="hero_heading" className="font-display text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.08] text-balance mb-6">
             Light Up Your Celebrations with <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-400 to-red-500">Joy & Safety</span>
           </h1>
 
-          <p className="text-base sm:text-lg text-stone-300 leading-relaxed mb-8 max-w-2xl">
+          <p data-rtc-component="hero_paragraph" className="text-base sm:text-lg text-stone-300 leading-relaxed mb-8 max-w-2xl">
             Complete wholesale & retail 2026 catalog from <strong className="text-white font-semibold">{STORE_INFO.name}</strong>. 
             Choose your favorites, create an itemized cart, and send your order directly to our Sivakasi booking team via WhatsApp.
           </p>

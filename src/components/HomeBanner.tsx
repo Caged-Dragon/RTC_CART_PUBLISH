@@ -42,7 +42,7 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
     if (['products','table','cart','myorders','tracker','whatsapp','mail','auth','gift-boxes','transport','safety','reviews'].includes(clean)) onNavigate(clean);
   };
 
-  return <section className="relative overflow-hidden bg-stone-950 border-b border-stone-800">
+  return <section data-rtc-component="home_banner" className="relative overflow-hidden bg-stone-950 border-b border-stone-800">
     <picture className="absolute inset-0 block">
       {banner.mobile_image_url && <source media="(max-width: 640px)" srcSet={banner.mobile_image_url} />}
       <img src={banner.image_url} alt={banner.alt_text || banner.headline || banner.offers?.title || 'RedThunder Crackers offer'} className="w-full h-full object-cover object-center" />
@@ -55,8 +55,8 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
           <Sparkles className="w-3.5 h-3.5" />
           <span>{banner.offers?.title || 'RedThunder Crackers'}</span>
         </div>
-        {banner.headline && <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.08] mb-4 sm:mb-5 max-w-3xl">{banner.headline}</h1>}
-        {banner.subheadline && <p className="text-sm sm:text-lg text-stone-200 leading-relaxed mb-6 sm:mb-8 max-w-2xl">{banner.subheadline}</p>}
+        {banner.headline && <h1 data-rtc-component="hero_heading" className="font-display text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.08] mb-4 sm:mb-5 max-w-3xl">{banner.headline}</h1>}
+        {banner.subheadline && <p data-rtc-component="hero_paragraph" className="text-sm sm:text-lg text-stone-200 leading-relaxed mb-6 sm:mb-8 max-w-2xl">{banner.subheadline}</p>}
         {banner.button_text && <button onClick={handleButton} className="w-full sm:w-auto justify-center px-5 sm:px-6 py-3.5 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold text-sm shadow-lg flex items-center gap-2 cursor-pointer">{banner.button_text}<ArrowRight className="w-4 h-4"/></button>}
         {banners.length > 1 && <div className="flex items-center gap-2 mt-6" aria-label="Home banners">{banners.map((b,i)=><button key={b.id} onClick={()=>setIndex(i)} aria-label={`Show banner ${i+1}`} className={`h-1.5 rounded-full transition-all ${i===index?'w-8 bg-amber-400':'w-3 bg-white/40'}`}/>)}</div>}
       </div>

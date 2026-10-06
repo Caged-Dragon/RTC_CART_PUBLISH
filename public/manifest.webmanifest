@@ -1,0 +1,15 @@
+{
+  "name": "RT Crackers Cart",
+  "short_name": "RT Crackers",
+  "description": "RT Crackers 2026 catalogue and customer ordering cart.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#fff4ef",
+  "theme_color": "#d92d27",
+  "icons": [
+    { "src": "/rt-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/rt-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

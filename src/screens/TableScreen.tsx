@@ -15,7 +15,7 @@ export const TableScreen: React.FC<TableScreenProps> = ({ onNavigate }) => {
   const { products, isLoading } = useProducts();
 
   return (
-    <div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div data-rtc-component="table" className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
       
       {/* Title */}
       <div className="border-b border-stone-800 dark:border-stone-800 light:border-stone-200 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">

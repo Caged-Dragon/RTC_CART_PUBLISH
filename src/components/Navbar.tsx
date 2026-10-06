@@ -94,7 +94,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen 
     }`;
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-stone-200 bg-white/95 text-stone-900 shadow-sm backdrop-blur-md dark:border-stone-800 dark:bg-stone-950/95 dark:text-stone-100">
+    <header data-rtc-component="navbar" className="sticky top-0 z-40 w-full border-b border-stone-200 bg-white/95 text-stone-900 shadow-sm backdrop-blur-md dark:border-stone-800 dark:bg-stone-950/95 dark:text-stone-100">
       <div className="mx-auto w-full max-w-[1440px] px-3 sm:px-5 lg:px-6 xl:px-8">
         <div className="flex min-h-16 items-center gap-3 py-2 sm:min-h-[72px] sm:py-2.5">
           {/* Brand */}

@@ -46,7 +46,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="py-12 max-w-xl mx-auto px-4 sm:px-6 space-y-8">
+    <div data-rtc-component="auth_card" className="py-12 max-w-xl mx-auto px-4 sm:px-6 space-y-8">
       
       {/* Title */}
       <div className="text-center space-y-2">

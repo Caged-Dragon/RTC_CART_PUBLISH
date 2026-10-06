@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ShoppingBag, ArrowRight } from 'lucide-react';
 import { CartProvider, useCart } from './context/CartContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -26,6 +26,9 @@ import { GiftBoxesShowcase } from './components/GiftBoxesShowcase';
 import { TransportScreen } from './screens/TransportScreen';
 import { SafetyScreen } from './screens/SafetyScreen';
 import { CustomerReviewsFeedback } from './components/CustomerReviewsFeedback';
+import { PwaInstallPrompt } from './components/PwaInstallPrompt';
+import { CategoriesProvider } from './context/CategoriesContext';
+import { CagedDragonAd } from './components/CagedDragonAd';
 
 // Parallel Seller Portal
 
@@ -36,12 +39,17 @@ function StorefrontApp() {
   const [currentScreen, setCurrentScreen] = useState<ScreenId>('intro');
   const [selectedTrackingId, setSelectedTrackingId] = useState('RT-2026-1088');
 
+  useEffect(() => {
+    const themePage = currentScreen === 'intro' ? 'home' : currentScreen === 'myorders' ? 'orders' : currentScreen; window.dispatchEvent(new CustomEvent('rt-theme-page', { detail: themePage }));
+  }, [currentScreen]);
+
   // Modals
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#faf7f2] dark:bg-stone-950 text-stone-900 dark:text-stone-100 flex flex-col transition-colors">
+      <PwaInstallPrompt />
       
       {/* Top Bar with Navigation & Controls */}
       <Navbar
@@ -118,6 +126,8 @@ function StorefrontApp() {
       {/* Footer */}
       <Footer onOpenSafety={() => setIsSafetyOpen(true)} />
 
+      <CagedDragonAd />
+
       {/* Floating Bottom Cart Bar (visible in customer mode when items in cart) */}
       {totalBoxes > 0 && currentScreen !== 'cart' && true && (
         <aside
@@ -186,13 +196,15 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <StoreProvider>
-        <ProductsProvider>
-          <ToastProvider>
-            <CartProvider>
-              <StorefrontApp />
-            </CartProvider>
-          </ToastProvider>
-        </ProductsProvider>
+          <CategoriesProvider>
+            <ProductsProvider>
+              <ToastProvider>
+                <CartProvider>
+                  <StorefrontApp />
+                </CartProvider>
+              </ToastProvider>
+            </ProductsProvider>
+          </CategoriesProvider>
         </StoreProvider>
       </AuthProvider>
     </ThemeProvider>

@@ -13,7 +13,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const isOutOfStock = product.stockStatus === 'OUT_OF_STOCK';
 
   return (
-    <div className="group relative flex flex-col justify-between bg-stone-900/90 dark:bg-stone-900/90 light:bg-white rounded-xl border border-stone-800/80 dark:border-stone-800/80 light:border-stone-200 hover:border-amber-500/50 hover:shadow-xl transition-all overflow-hidden p-4">
+    <div data-rtc-component="product_card" className="group relative flex flex-col justify-between bg-stone-900/90 dark:bg-stone-900/90 light:bg-white rounded-xl border border-stone-800/80 dark:border-stone-800/80 light:border-stone-200 hover:border-amber-500/50 hover:shadow-xl transition-all overflow-hidden p-4">
       {/* Product Image Banner if uploaded */}
       {product.imageUrl && (
         <div className="relative -mx-4 -mt-4 mb-3 h-32 overflow-hidden bg-stone-950">

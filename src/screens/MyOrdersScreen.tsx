@@ -51,7 +51,7 @@ export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
   };
 
   return (
-    <div className="py-8 sm:py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div data-rtc-component="order_list" className="py-8 sm:py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
       
       {/* Customer Dashboard Header */}
       <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-stone-900 via-stone-900 to-amber-950/40 border border-stone-800 dark:border-stone-800 light:border-stone-200 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">

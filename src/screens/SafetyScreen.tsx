@@ -5,7 +5,7 @@ import { useStore } from '../context/StoreContext';
 export const SafetyScreen: React.FC = () => {
   const { storeInfo: STORE_INFO } = useStore();
   return (
-    <div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+    <div data-rtc-component="safety_cards" className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
       
       {/* Header */}
       <div className="border-b border-stone-800 dark:border-stone-800 light:border-stone-200 pb-8">

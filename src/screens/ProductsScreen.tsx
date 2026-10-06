@@ -3,10 +3,12 @@ import { Search, X, Plus, Minus, Box, Sparkles, Filter, ShoppingBag } from 'luci
 import { Product, CATEGORIES } from '../data/products';
 import { useCart } from '../context/CartContext';
 import { useProducts } from '../context/ProductsContext';
+import { useCategories } from '../context/CategoriesContext';
 
 export const ProductsScreen: React.FC = () => {
   const { getItemQuantity, addToCart, updateQuantity, totalBoxes, subtotal, setIsCartOpen } = useCart();
   const { products } = useProducts();
+  const { categories } = useCategories();
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [priceSort, setPriceSort] = useState<'default' | 'low' | 'high'>('default');
@@ -57,23 +59,10 @@ export const ProductsScreen: React.FC = () => {
     });
   }, [products, search, selectedCategory, priceSort]);
 
-  // Simplified friendly categories
-  const friendlyCategories = [
-    { label: 'All Crackers', value: 'All', count: products.length },
-    { label: 'Sparklers', value: 'Colourful Sparklers', count: products.filter(p => p.category === 'Colourful Sparklers').length },
-    { label: 'Flower Pots', value: 'Flower Pots', count: products.filter(p => p.category === 'Flower Pots').length },
-    { label: 'Ground Chakkars', value: 'Ground Chakkar', count: products.filter(p => p.category === 'Ground Chakkar').length },
-    { label: 'Bombs & Sound', value: 'Bombs', count: products.filter(p => p.category === 'Bombs' || p.category === 'Paper Bombs').length },
-    { label: 'Fountains Special', value: 'Fountain Special', count: products.filter(p => p.category === 'Fountain Special').length },
-    { label: 'Sky Repeating Shots', value: 'Multiple Repeating Shots', count: products.filter(p => p.category === 'Multiple Repeating Shots').length },
-    { label: 'Mega Aerial Shells', value: 'Mega Fancy Varieties', count: products.filter(p => p.category === 'Mega Fancy Varieties').length },
-    { label: 'Wala & Garlands', value: 'Chorsa & Wala', count: products.filter(p => p.category === 'Chorsa & Wala').length },
-    { label: 'Gift Boxes (Hampers)', value: 'Gift Boxes', count: products.filter(p => p.category === 'Gift Boxes').length },
-    { label: 'Kids Novelties', value: 'Kids Special', count: products.filter(p => p.category === 'Kids Special').length },
-  ];
+  const friendlyCategories = [{ label: 'All Crackers', value: 'All', count: products.length }, ...categories.filter(c => c.is_active).map(cat => ({ label: cat.category_name, value: cat.category_name, count: products.filter(p => p.category === cat.category_name).length }))];
 
   return (
-    <div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div data-rtc-component="product_grid" className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
       
       {/* Page Title & Easy Description */}
       <div className="border-b border-stone-800 dark:border-stone-800 light:border-stone-200 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -83,7 +72,7 @@ export const ProductsScreen: React.FC = () => {
             <span>Product Photo Gallery</span>
           </div>
           <h1 className="font-display text-3xl font-black text-white dark:text-white light:text-stone-900 tracking-tight">
-            All 127 Crackers with Photos
+            All crackers with photos
           </h1>
           <p className="text-xs sm:text-sm text-stone-400 dark:text-stone-400 light:text-stone-600 mt-1 max-w-xl">
             Browse crackers with clear pictures and factory rates. Click <strong>"+"</strong> to add items to your cart.

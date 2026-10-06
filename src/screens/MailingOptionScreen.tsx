@@ -71,7 +71,7 @@ export const MailingOptionScreen: React.FC<MailingOptionScreenProps> = ({ onOpen
   };
 
   return (
-    <div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+    <div data-rtc-component="mail_option" className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
       
       {/* Title */}
       <div className="border-b border-stone-800 dark:border-stone-800 light:border-stone-200 pb-6">

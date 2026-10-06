@@ -60,7 +60,7 @@ export const CartPageScreen: React.FC<CartPageScreenProps> = ({ onNavigate, onOp
   };
 
   return (
-    <div className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <div data-rtc-component="cart_items" className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
       
       {/* Title */}
       <div className="border-b border-stone-800 dark:border-stone-800 light:border-stone-200 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
