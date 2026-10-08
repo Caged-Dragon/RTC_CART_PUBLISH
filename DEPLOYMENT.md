@@ -31,3 +31,18 @@ The admin Company Control screen updates `public.company_profile`. The customer 
 1. Run `supabase/migrations/20261007_order_rules_and_policy_cleanup.sql` in the Supabase SQL editor (reviewed; adds server-side minimum-order / season checks).
 2. Supabase dashboard > Authentication > Passwords: enable **Leaked password protection**.
 3. Open the site once on a phone: the browser should offer **Install app** (icons + service worker are now valid).
+
+## Transactional customer emails
+
+The cart now sends transactional emails through the Supabase Edge Function `transactional-email` and Resend. The function selects the sender dynamically from `public.business_email_addresses` by `public.business_email_purposes` and writes delivery records to `email_messages` / `email_recipients`.
+
+Set these Edge Function secrets in Supabase (Dashboard → Edge Functions → Secrets):
+- `RESEND_API_KEY` — your Resend API key
+- `SEND_EMAIL_HOOK_SECRET` — the secret generated when configuring the Supabase Auth **Send Email** hook
+
+Then configure Authentication → Hooks → **Send Email** to call:
+`https://ypmiinmkyvzdpakbkers.supabase.co/functions/v1/transactional-email`
+
+The hook must be enabled after the function is deployed. With the hook enabled, Supabase Auth sends signup verification, password reset, magic-link and related auth emails through this function, which uses the `account` business email purpose. Order confirmations use the `orders` purpose; quotations use `sales`.
+
+Do not expose `RESEND_API_KEY`, `SUPABASE_SECRET_KEY`, or `SUPABASE_SERVICE_ROLE_KEY` in Vite `VITE_*` variables.

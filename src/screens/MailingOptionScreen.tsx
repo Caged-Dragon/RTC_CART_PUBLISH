@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useToast } from '../context/ToastContext';
-import { Mail, Send, CheckCircle2, FileText, Printer, AlertCircle } from 'lucide-react';
+import { Mail, Send, CheckCircle2, FileText } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useStore } from '../context/StoreContext';
+import { useAuth } from '../context/AuthContext';
+import { sendTransactionalEmail } from '../lib/email';
 
 interface MailingOptionScreenProps {
   onOpenInvoice: () => void;
@@ -12,6 +14,7 @@ export const MailingOptionScreen: React.FC<MailingOptionScreenProps> = ({ onOpen
   const { showToast } = useToast();
   const { storeInfo: STORE_INFO } = useStore();
   const { cart, subtotal, totalBoxes, customerDetails, updateCustomerDetails } = useCart();
+  const { session } = useAuth();
   const [recipientEmail, setRecipientEmail] = useState(customerDetails.email || '');
   const [customerName, setCustomerName] = useState(customerDetails.name || '');
   const [notes, setNotes] = useState('');
@@ -59,9 +62,15 @@ export const MailingOptionScreen: React.FC<MailingOptionScreenProps> = ({ onOpen
     setSending(true); setStatusMessage(null);
     updateCustomerDetails({ email: recipientEmail, name: customerName, notes });
     const body = generateEmailBody();
-    window.location.href = `mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(body)}`;
-    setStatusMessage('Your email app has been opened with the quotation ready to send.');
-    setSending(false);
+    try {
+      await sendTransactionalEmail({ action: 'quotation', toEmail: recipientEmail.trim(), customerName, subject: emailSubject, message: body }, session);
+      setStatusMessage('Quotation sent successfully to your email address.');
+    } catch (error: any) {
+      console.error('Quotation email failed', error);
+      setStatusMessage(error?.message || 'Unable to send the quotation right now.');
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleOpenEmailClient = () => {

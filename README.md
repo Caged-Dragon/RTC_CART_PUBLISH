@@ -44,3 +44,13 @@ The product detail URL is shareable as `/product/<product-id>` while the existin
 ### Combo packs
 
 The storefront includes 24 predefined combo recipes. They are frontend selection rules that dynamically resolve against the live `products` catalogue; they do not create or update Supabase data.
+
+## Transactional email delivery
+
+Customer transactional mail is handled server-side by `supabase/functions/transactional-email/index.ts` using Resend. The browser never receives the Resend API key. The sender is resolved at runtime from `business_email_purposes` + `business_email_addresses`, and sent messages are recorded in `email_messages` / `email_recipients` with the Resend message ID.
+
+Supported automatic flows in this codebase:
+- Supabase Auth confirmation/reset/magic-link/security emails through the **Send Email** Auth Hook.
+- Order confirmation immediately after a successful `create_order` RPC.
+- Customer quotation emails from the Email Quotation screen.
+- An `order_status` mail action is included in the server function for order-lifecycle integrations.
