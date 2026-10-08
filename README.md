@@ -34,3 +34,13 @@ site follows, no redeploy.
 This app only **reads** `products`, `product_categories`, `company_profile`, `merchant_settings`, offers and
 reviews, and calls the existing `create_order` RPC. The Supabase schema is shared with other sites, so nothing
 here alters it. `supabase/migrations/*` is optional and must be reviewed against every site before it is run.
+
+## RedThunder 3.0 UI architecture
+The storefront UI is frontend-only and is intentionally isolated from the live database contracts. Theme values are read from the existing `theme_page_settings` table using `website_key=cart`; the frontend does not create, update, migrate or delete theme/data tables. New UI screens such as `/about` and `/contact` reuse the existing `cart/home` theme row so they remain consistent with database-controlled styling.
+
+The product detail URL is shareable as `/product/<product-id>` while the existing `/products?product=<id>` form remains supported for backwards compatibility.
+
+
+### Combo packs
+
+The storefront includes 24 predefined combo recipes. They are frontend selection rules that dynamically resolve against the live `products` catalogue; they do not create or update Supabase data.

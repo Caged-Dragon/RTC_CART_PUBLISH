@@ -1,10 +1,12 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
-import { ShoppingBag, ArrowRight } from 'lucide-react';
+import { ArrowRight, ShoppingBag } from 'lucide-react';
 import { CartProvider, useCart } from './context/CartContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { StoreProvider } from './context/StoreContext';
 import { AuthProvider } from './context/AuthContext';
 import { ProductsProvider } from './context/ProductsContext';
+import { HomepagePicksProvider } from './context/HomepagePicksContext';
+import { ComboPacksProvider } from './context/ComboPacksContext';
 import { ToastProvider } from './context/ToastContext';
 import { Navbar, ScreenId } from './components/Navbar';
 import { CartDrawer } from './components/CartDrawer';
@@ -26,33 +28,46 @@ const GiftBoxesShowcase = lazy(() => import('./components/GiftBoxesShowcase').th
 const TransportScreen = lazy(() => import('./screens/TransportScreen').then(m => ({ default: m.TransportScreen })));
 const SafetyScreen = lazy(() => import('./screens/SafetyScreen').then(m => ({ default: m.SafetyScreen })));
 const CustomerReviewsFeedback = lazy(() => import('./components/CustomerReviewsFeedback').then(m => ({ default: m.CustomerReviewsFeedback })));
+const AboutScreen = lazy(() => import('./screens/AboutScreen').then(m => ({ default: m.AboutScreen })));
+const ContactScreen = lazy(() => import('./screens/ContactScreen').then(m => ({ default: m.ContactScreen })));
 import { PwaInstallPrompt } from './components/PwaInstallPrompt';
 import { CategoriesProvider } from './context/CategoriesContext';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { CagedDragonAd } from './components/CagedDragonAd';
+import { ComboPacksSection } from './components/ComboPacksSection';
+import { ProductDetailScreen } from './screens/ProductDetailScreen';
+import { useProducts } from './context/ProductsContext';
 
 
 const SCREEN_PATHS: Record<ScreenId, string> = {
   intro: '/', products: '/products', table: '/price-list', cart: '/cart', myorders: '/my-orders', tracker: '/track-order',
-  whatsapp: '/whatsapp-order', mail: '/email-bill', auth: '/login', 'gift-boxes': '/gift-boxes', transport: '/transport',
-  safety: '/safety', reviews: '/reviews',
+  whatsapp: '/whatsapp-order', mail: '/email-bill', auth: '/login', combos: '/combos', 'gift-boxes': '/gift-boxes', transport: '/transport',
+  safety: '/safety', reviews: '/reviews', about: '/about', contact: '/contact',
 };
 const SCREEN_TITLES: Record<ScreenId, string> = {
   intro: 'RT Crackers (Makka & Wheat) – Factory-Direct Sivakasi Crackers 2026',
   products: 'All Crackers with Photos & Rates | RT Crackers', table: '2026 Price List | RT Crackers', cart: 'Your Cart | RT Crackers',
   myorders: 'My Orders | RT Crackers', tracker: 'Track Your Order | RT Crackers', whatsapp: 'Order on WhatsApp | RT Crackers',
-  mail: 'Email Your Bill | RT Crackers', auth: 'Sign In | RT Crackers', 'gift-boxes': 'Gift Boxes | RT Crackers',
-  transport: 'Transport & Freight | RT Crackers', safety: 'Cracker Safety Guide | RT Crackers', reviews: 'Customer Reviews | RT Crackers',
+  mail: 'Email Your Bill | RT Crackers', auth: 'Sign In | RT Crackers', combos: 'Combo Packs | RT Crackers', 'gift-boxes': 'Gift Boxes | RT Crackers',
+  transport: 'Transport & Freight | RT Crackers', safety: 'Cracker Safety Guide | RT Crackers', reviews: 'Customer Reviews | RT Crackers', about: 'About RT Crackers | Sivakasi Factory Direct', contact: 'Contact RT Crackers | WhatsApp & Support',
 };
 function screenFromPath(pathname: string): ScreenId {
   const clean = pathname.replace(/\/+$/, '') || '/';
+  if (/^\/product\/\d+$/.test(clean)) return 'products';
   const hit = (Object.keys(SCREEN_PATHS) as ScreenId[]).find(k => SCREEN_PATHS[k] === clean);
   return hit ?? 'intro';
 }
 
 
 function StorefrontApp() {
-  const { totalBoxes, subtotal, ordersHistory } = useCart();
-  
+  const { ordersHistory, totalBoxes, subtotal, setIsCartOpen } = useCart();
+  const { products } = useProducts();
+
+  const [selectedTrackingId, setSelectedTrackingId] = useState('RT-2026-1088');
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(() => {
+    const match = window.location.pathname.match(/^\/product\/(\d+)$/);
+    return match ? Number(match[1]) : null;
+  });
   // Navigation Screen State (can be customer screens or 'seller')
   const [currentScreen, setScreenRaw] = useState<ScreenId>(() => screenFromPath(window.location.pathname));
 
@@ -60,20 +75,24 @@ function StorefrontApp() {
   // Back button works. (vercel.json rewrites unknown paths to index.html.)
   const setCurrentScreen = (screen: ScreenId) => {
     setScreenRaw(screen);
+    setSelectedProductId(null);
     const path = SCREEN_PATHS[screen];
     if (window.location.pathname !== path) window.history.pushState({ screen }, '', path);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   useEffect(() => {
-    const onPop = () => setScreenRaw(screenFromPath(window.location.pathname));
+    const onPop = () => {
+      const path = window.location.pathname;
+      const match = path.match(/^\/product\/(\d+)$/);
+      setSelectedProductId(match ? Number(match[1]) : null);
+      setScreenRaw(screenFromPath(path));
+    };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
-  useEffect(() => { document.title = SCREEN_TITLES[currentScreen]; }, [currentScreen]);
-  const [selectedTrackingId, setSelectedTrackingId] = useState('RT-2026-1088');
-
+  useEffect(() => { document.title = selectedProductId ? 'Product Details | RT Crackers' : SCREEN_TITLES[currentScreen]; }, [currentScreen, selectedProductId]);
   useEffect(() => {
-    const themePage = currentScreen === 'intro' ? 'home' : currentScreen === 'myorders' ? 'orders' : currentScreen; window.dispatchEvent(new CustomEvent('rt-theme-page', { detail: themePage }));
+    const themePage = currentScreen === 'intro' || currentScreen === 'about' || currentScreen === 'contact' ? 'home' : currentScreen === 'myorders' ? 'orders' : currentScreen === 'mail' ? 'mailing' : currentScreen === 'combos' ? 'gift-boxes' : currentScreen; window.dispatchEvent(new CustomEvent('rt-theme-page', { detail: themePage }));
   }, [currentScreen]);
 
   // Modals
@@ -81,8 +100,9 @@ function StorefrontApp() {
   const [isSafetyOpen, setIsSafetyOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FB] text-[#101828] flex flex-col transition-colors">
+    <div className="min-h-screen bg-[#faf7f2] dark:bg-stone-950 text-stone-900 dark:text-stone-100 flex flex-col transition-colors">
       <PwaInstallPrompt />
+      <CagedDragonAd visible={currentScreen !== 'cart'} />
       
       {/* Top Bar with Navigation & Controls */}
       <Navbar
@@ -100,7 +120,22 @@ function StorefrontApp() {
         )}
 
         {currentScreen === 'products' && (
-          <ProductsScreen />
+          selectedProductId ? (() => {
+            const product = products.find((item) => item.id === selectedProductId);
+            const related = product ? products.filter((item) => item.id !== product.id && item.category === product.category) : [];
+            return product ? (
+              <ProductDetailScreen
+                product={product}
+                related={related}
+                onBack={() => setCurrentScreen('products')}
+                onSelectRelated={(item) => {
+                  setSelectedProductId(item.id);
+                  window.history.pushState({ productId: item.id }, '', `/product/${item.id}`);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              />
+            ) : <ProductsScreen />;
+          })() : <ProductsScreen />
         )}
 
         {currentScreen === 'table' && (
@@ -138,8 +173,10 @@ function StorefrontApp() {
           <AuthScreen onNavigate={setCurrentScreen} />
         )}
 
+        {currentScreen === 'combos' && <ComboPacksSection onNavigate={setCurrentScreen} standalone />}
+
         {currentScreen === 'gift-boxes' && (
-          <GiftBoxesShowcase isStandaloneScreen={true} />
+          <GiftBoxesShowcase isStandaloneScreen={true} onNavigate={setCurrentScreen} />
         )}
 
         {currentScreen === 'transport' && (
@@ -155,51 +192,24 @@ function StorefrontApp() {
             <CustomerReviewsFeedback orders={ordersHistory} />
           </div>
         )}
+
+        {currentScreen === 'about' && <AboutScreen onNavigate={setCurrentScreen} />}
+
+        {currentScreen === 'contact' && <ContactScreen onNavigate={setCurrentScreen} />}
         </Suspense>
       </main>
 
       {/* Footer */}
-      <Footer onOpenSafety={() => setIsSafetyOpen(true)} />
+      <Footer onOpenSafety={() => setIsSafetyOpen(true)} onNavigate={setCurrentScreen} />
 
-      <CagedDragonAd />
+      <MobileBottomNav currentScreen={currentScreen} setCurrentScreen={setCurrentScreen} />
 
-      {/* Floating Bottom Cart Bar (visible in customer mode when items in cart) */}
-      {totalBoxes > 0 && currentScreen !== 'cart' && true && (
-        <aside
-          aria-label="Current Cart Summary"
-          className="fixed bottom-0 inset-x-0 z-40 hidden sm:block bg-stone-900/95 dark:bg-stone-900/95 light:bg-white/95 backdrop-blur-md border-t border-amber-600/40 p-3 sm:p-4 shadow-2xl transition-all"
-        >
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-500 text-black flex items-center justify-center font-bold shadow">
-                <ShoppingBag className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs text-stone-400 dark:text-stone-400 light:text-stone-600">
-                  <span className="text-white dark:text-white light:text-stone-900 font-bold tabular-nums">{totalBoxes}</span> items in cart
-                </div>
-                <div className="font-display text-lg sm:text-xl font-black text-amber-400 dark:text-amber-400 light:text-amber-700 tabular-nums">
-                  ₹{subtotal.toLocaleString('en-IN')}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsInvoiceOpen(true)}
-                className="hidden sm:inline-flex px-3.5 py-2.5 rounded-lg bg-stone-800 dark:bg-stone-800 light:bg-stone-100 hover:bg-stone-700 text-stone-200 dark:text-stone-200 light:text-stone-800 text-xs font-semibold border border-stone-700 dark:border-stone-700 light:border-stone-300 transition-colors cursor-pointer"
-              >
-                View Bill / PDF
-              </button>
-
-              <button
-                onClick={() => setCurrentScreen('cart')}
-                className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-red-950/60 transition-all cursor-pointer flex items-center gap-2 active:scale-95"
-              >
-                <span>Open Cart Page</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
+      {totalBoxes > 0 && currentScreen !== 'cart' && (
+        <aside className="rt-mini-cart-bar" aria-label="Current cart summary">
+          <div className="rt-mini-cart-inner">
+            <div className="rt-mini-cart-icon"><ShoppingBag /></div>
+            <div><span>{totalBoxes} units · {subtotal.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}</span><strong>Ready when you are</strong></div>
+            <button onClick={() => { setIsCartOpen(true); }} aria-label="Open cart"><span className="desktop-only">Review cart</span><span className="mobile-only">Cart</span><ArrowRight /></button>
           </div>
         </aside>
       )}
@@ -233,11 +243,15 @@ export default function App() {
         <StoreProvider>
           <CategoriesProvider>
             <ProductsProvider>
+              <HomepagePicksProvider>
+              <ComboPacksProvider>
               <ToastProvider>
                 <CartProvider>
                   <StorefrontApp />
                 </CartProvider>
               </ToastProvider>
+              </ComboPacksProvider>
+              </HomepagePicksProvider>
             </ProductsProvider>
           </CategoriesProvider>
         </StoreProvider>

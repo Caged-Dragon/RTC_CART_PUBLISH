@@ -1,31 +1,46 @@
-import React, { useEffect, useState } from 'react';
-import { AlertCircle, ArrowRight, Check, Copy, FileText, Mail, MapPin, Minus, Plus, ShoppingBag, Trash2, Truck, MessageCircle } from 'lucide-react';
-import { useCart, PlacedOrder } from '../context/CartContext';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, ArrowRight, Check, Copy, FileText, Mail, MapPin, MessageCircle, Minus, Plus, ShieldCheck, ShoppingBag, Trash2, Truck } from 'lucide-react';
+import { useCart } from '../context/CartContext';
+import type { PlacedOrder } from '../context/CartContext';
 import { useStore } from '../context/StoreContext';
+import { getExactProductImage } from '../utils/productImages';
 import { useAuth } from '../context/AuthContext';
 import { formatWhatsAppMessage, getWhatsAppUrl, openWhatsAppAfter } from '../utils/whatsapp';
 import { useToast } from '../context/ToastContext';
-import { ScreenId } from '../components/Navbar';
+import type { ScreenId } from '../components/Navbar';
 import { MinimumOrderBooster } from '../components/MinimumOrderBooster';
-import { QuickOrder } from '../components/QuickOrder';
+import { CartRecommendations } from '../components/CartRecommendations';
+import { setShopIntent } from '../utils/shopNavigation';
 
 interface CartPageScreenProps { onNavigate: (screen: ScreenId) => void; onOpenInvoice: () => void; }
-const imageFor = (p:any) => p.imageUrl || (p.category?.toLowerCase().includes('spark') ? '/images/redthunder_sparklers_1791297554442.jpg' : p.category?.toLowerCase().includes('flower') ? '/images/redthunder_pots_fountains_1791299034674.jpg' : '/images/redthunder_gift_boxes_1791297541022.jpg');
 
 export const CartPageScreen: React.FC<CartPageScreenProps> = ({ onNavigate, onOpenInvoice }) => {
   const { storeInfo, merchant } = useStore();
   const { showToast } = useToast();
   const { isAuthenticated } = useAuth();
   const { cart, subtotal, totalBoxes, totalItems, updateQuantity, removeFromCart, clearCart, customerDetails, updateCustomerDetails, placeOrder } = useCart();
+  const savings = useMemo(() => cart.reduce((sum, item) => {
+    const mrp = Number((item.product as typeof item.product & { mrpRate?: number }).mrpRate || 0);
+    return sum + Math.max(0, mrp - item.product.rate) * item.quantity;
+  }, 0), [cart]);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [savedOrder, setSavedOrder] = useState<PlacedOrder | null>(null);
+
   useEffect(() => { if (cart.length > 0 && savedOrder) setSavedOrder(null); }, [cart.length, savedOrder]);
 
   const shortfall = Math.max(0, merchant.minimumOrderValue - subtotal);
   const meetsMinimum = shortfall === 0;
   const contactOk = customerDetails.name.trim().length > 1 && /^\d{10}$/.test(customerDetails.phone.replace(/\D/g, '').slice(-10)) && customerDetails.city.trim().length > 0;
   const canOrder = merchant.isBookingOpen && meetsMinimum && cart.length > 0 && contactOk;
+  const orderProgress = merchant.minimumOrderValue > 0 ? Math.min(100, (subtotal / merchant.minimumOrderValue) * 100) : 100;
+  const readyMessage = !merchant.isBookingOpen
+    ? 'Season booking is closed'
+    : meetsMinimum && contactOk
+      ? 'Your order is ready to confirm'
+      : !meetsMinimum
+        ? `Add ₹${shortfall.toLocaleString('en-IN')} more to unlock checkout`
+        : 'Complete the required delivery details to continue';
 
   const ensureOrder = async (): Promise<PlacedOrder> => {
     if (savedOrder) return savedOrder;
@@ -37,23 +52,150 @@ export const CartPageScreen: React.FC<CartPageScreenProps> = ({ onNavigate, onOp
     showToast({ type: 'order', title: 'Order booked', message: `Order ${order.orderId} saved. Send it on WhatsApp to confirm with our team.` });
     return order;
   };
-  const handleWhatsAppSend = async () => { if (busy) return; setBusy(true); try { await openWhatsAppAfter(async () => { const o=await ensureOrder(); return getWhatsAppUrl(o.items,o.customer,o.subtotal,o.orderId,storeInfo); }); } catch(e:any) { showToast({type:'error', title:'Could not place order', message:e.message||'Unable to place order.'}); } finally { setBusy(false); } };
-  const handleCopyText = async () => { if (busy) return; setBusy(true); try { const o=await ensureOrder(); await navigator.clipboard.writeText(formatWhatsAppMessage(o.items,o.customer,o.subtotal,o.orderId,storeInfo)); setCopied(true); setTimeout(()=>setCopied(false),2500); } catch(e:any) { showToast({type:'error', title:'Could not place order', message:e.message||'Unable to place order.'}); } finally { setBusy(false); } };
 
-  if (savedOrder && cart.length === 0) return <div className="bg-[#F8F9FB] px-4 py-10"><div className="mx-auto max-w-2xl"><div className="rounded-3xl border border-[#B7E5C9] bg-white p-7 text-center shadow-[0_14px_40px_rgba(16,24,40,.08)]"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#11B35A] text-white"><Check className="h-8 w-8" /></div><p className="mt-4 text-[10px] font-black uppercase tracking-[.16em] text-[#11B35A]">Order confirmed</p><h1 className="mt-1 font-display text-3xl font-black text-[#101828]">Order booked!</h1><p className="mt-3 text-xs leading-relaxed text-[#667085]">Your booking <strong className="text-[#E30613]">{savedOrder.orderId}</strong> ({savedOrder.totalBoxes} units · ₹{savedOrder.subtotal.toLocaleString('en-IN')}) is saved. Send it on WhatsApp so our Sivakasi team can confirm stock and freight.</p>{savedOrder.guestTrackingToken && !isAuthenticated && <p className="mt-4 rounded-xl bg-[#FFF9EC] p-3 text-left text-[10px] text-[#7A4B00]">Guest tracking code: <span className="break-all font-mono font-bold">{savedOrder.guestTrackingToken}</span></p>}<div className="mt-5 grid gap-2"><a href={getWhatsAppUrl(savedOrder.items,savedOrder.customer,savedOrder.subtotal,savedOrder.orderId,storeInfo)} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#11B35A] py-3.5 text-xs font-black text-white"><MessageCircle className="h-4 w-4" /> Send on WhatsApp</a><div className="grid grid-cols-2 gap-2"><button onClick={handleCopyText} className="rounded-xl bg-[#101828] py-3 text-xs font-black text-white">{copied ? 'Copied!' : 'Copy Order Text'}</button><button onClick={() => onNavigate(isAuthenticated?'myorders':'tracker')} className="rounded-xl border border-[#E4E7EC] bg-white py-3 text-xs font-black text-[#344054]">Track Order</button></div><button onClick={()=>{setSavedOrder(null);onNavigate('products')}} className="py-2 text-xs font-bold text-[#667085]">Continue shopping</button></div></div></div></div>;
+  const handleWhatsAppSend = async () => {
+    if (busy) return;
+    setBusy(true);
+    try { await openWhatsAppAfter(async () => { const order = await ensureOrder(); return getWhatsAppUrl(order.items, order.customer, order.subtotal, order.orderId, storeInfo); }); }
+    catch (error: any) { showToast({ type: 'error', title: 'Could not place order', message: error.message || 'Unable to place order.' }); }
+    finally { setBusy(false); }
+  };
 
-  return <div className="bg-[#F8F9FB] py-6 pb-24 sm:py-8 md:pb-10" data-rtc-component="cart_items">
-    <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-[#E30613]">Order review & checkout</p><h1 className="mt-1 font-display text-2xl font-black text-[#101828] sm:text-3xl">Your Cracker <span className="text-[#E30613]">Cart</span></h1><p className="mt-1 text-xs text-[#667085]">Review your products, add delivery details and confirm via WhatsApp.</p></div>{cart.length > 0 && <button onClick={clearCart} className="inline-flex items-center gap-2 self-start text-xs font-black text-[#667085] hover:text-[#E30613]"><Trash2 className="h-4 w-4" /> Clear Cart</button>}</div>
-      {cart.length === 0 ? <div className="rounded-3xl border border-[#EAECF0] bg-white p-10 text-center shadow-sm"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#FFF0F1] text-[#E30613]"><ShoppingBag className="h-7 w-7" /></div><h2 className="mt-4 font-display text-xl font-black text-[#101828]">Your cart is empty</h2><p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-[#667085]">You haven't picked any crackers yet. Explore the catalogue and add your favourites.</p><div className="mt-5 flex justify-center gap-2"><button onClick={()=>onNavigate('products')} className="rounded-xl bg-[#E30613] px-5 py-3 text-xs font-black text-white">Browse Products</button><button onClick={()=>onNavigate('table')} className="rounded-xl border border-[#E4E7EC] bg-white px-5 py-3 text-xs font-black text-[#344054]">Price List</button></div></div> : <div className="grid gap-5 lg:grid-cols-[1.35fr_.85fr]">
-        <div className="space-y-4"><QuickOrder /><section className="rounded-2xl border border-[#EAECF0] bg-white shadow-sm"><div className="flex items-center justify-between border-b border-[#F2F4F7] px-4 py-3"><h2 className="text-sm font-black text-[#101828]">Selected Products <span className="text-[#98A2B3]">({totalItems} varieties)</span></h2><span className="text-[10px] font-bold text-[#667085]">{totalBoxes} units</span></div><div className="divide-y divide-[#F2F4F7]">{cart.map(({product,quantity})=><div key={product.id} className="flex gap-3 p-4"><div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[#F8F9FB]"><img src={imageFor(product)} alt={product.name} className="h-full w-full object-cover" /></div><div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-[.12em] text-[#98A2B3]">{product.category} · {product.unit}</div><h3 className="mt-1 line-clamp-2 text-xs font-extrabold text-[#101828]">{product.name}</h3><p className="mt-1 text-[10px] text-[#667085]">₹{product.rate.toLocaleString('en-IN')} × {quantity} = <strong className="text-[#E30613]">₹{(product.rate*quantity).toLocaleString('en-IN')}</strong></p></div><div className="flex shrink-0 flex-col items-end gap-2"><div className="flex items-center rounded-lg border border-[#E4E7EC] bg-[#F8F9FB] p-0.5"><button onClick={()=>updateQuantity(product.id,quantity-1)} className="grid h-7 w-7 place-items-center rounded-md text-[#E30613]" aria-label={`Decrease ${product.name}`}><Minus className="h-3.5 w-3.5" /></button><span className="w-6 text-center text-[10px] font-black">{quantity}</span><button onClick={()=>updateQuantity(product.id,quantity+1)} className="grid h-7 w-7 place-items-center rounded-md text-[#E30613]" aria-label={`Increase ${product.name}`}><Plus className="h-3.5 w-3.5" /></button></div><button onClick={()=>removeFromCart(product.id)} className="text-[9px] font-black text-[#98A2B3] hover:text-[#E30613]">Remove</button></div></div>)}</div></section><div className="rounded-2xl border border-[#F3E4BF] bg-[#FFFBEF] p-4 text-xs"><div className="flex items-center gap-2 font-black text-[#9A6700]"><Truck className="h-4 w-4" /> Direct Sivakasi Transport Dispatch</div><p className="mt-1.5 leading-relaxed text-[#7A5B20]">Transport charges and final availability are confirmed by the team before dispatch.</p></div></div>
+  const handleCopyText = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const order = await ensureOrder();
+      await navigator.clipboard.writeText(formatWhatsAppMessage(order.items, order.customer, order.subtotal, order.orderId, storeInfo));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2500);
+    } catch (error: any) { showToast({ type: 'error', title: 'Could not place order', message: error.message || 'Unable to place order.' }); }
+    finally { setBusy(false); }
+  };
 
-        <div className="lg:sticky lg:top-28 lg:self-start"><section className="rounded-2xl border border-[#EAECF0] bg-white p-4 shadow-[0_10px_28px_rgba(16,24,40,.07)]"><div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-[#E30613]" /><h2 className="text-sm font-black text-[#101828]">Delivery Details</h2></div><div className="mt-4 grid gap-3"><input value={customerDetails.name} onChange={e=>updateCustomerDetails({name:e.target.value})} placeholder="Full name" className="h-11 rounded-xl border border-[#E4E7EC] bg-[#F8F9FB] px-3 text-xs outline-none focus:border-[#E30613]" /><input value={customerDetails.phone} onChange={e=>updateCustomerDetails({phone:e.target.value})} placeholder="10-digit phone" inputMode="numeric" className="h-11 rounded-xl border border-[#E4E7EC] bg-[#F8F9FB] px-3 text-xs outline-none focus:border-[#E30613]" /><div className="grid grid-cols-2 gap-2"><input value={customerDetails.city} onChange={e=>updateCustomerDetails({city:e.target.value})} placeholder="City" className="h-11 rounded-xl border border-[#E4E7EC] bg-[#F8F9FB] px-3 text-xs outline-none focus:border-[#E30613]" /><input value={customerDetails.email} onChange={e=>updateCustomerDetails({email:e.target.value})} placeholder="Email (guest)" type="email" className="h-11 rounded-xl border border-[#E4E7EC] bg-[#F8F9FB] px-3 text-xs outline-none focus:border-[#E30613]" /></div><textarea rows={3} value={customerDetails.address} onChange={e=>updateCustomerDetails({address:e.target.value})} placeholder="Delivery address / landmark" className="rounded-xl border border-[#E4E7EC] bg-[#F8F9FB] px-3 py-3 text-xs outline-none focus:border-[#E30613]" /></div><div className="mt-4 rounded-xl bg-[#F8F9FB] p-3"><div className="flex justify-between text-[11px] text-[#667085]"><span>Selected varieties</span><strong className="text-[#101828]">{totalItems}</strong></div><div className="mt-1 flex justify-between text-[11px] text-[#667085]"><span>Total units</span><strong className="text-[#101828]">{totalBoxes}</strong></div><div className="mt-2 flex justify-between border-t border-[#E4E7EC] pt-2"><span className="text-xs font-black text-[#101828]">Estimated total</span><strong className="font-display text-2xl font-black text-[#E30613]">₹{subtotal.toLocaleString('en-IN')}</strong></div></div>
-          {!merchant.isBookingOpen && <div className="mt-3 flex gap-2 rounded-xl border border-[#FECACA] bg-[#FEF2F2] p-3 text-[10px] font-bold text-[#B42318]"><AlertCircle className="h-4 w-4 shrink-0" /> Season booking is currently closed.</div>}
-          {merchant.isBookingOpen && !meetsMinimum && <div className="mt-3 rounded-xl border border-[#F3E4BF] bg-[#FFFBEF] p-3 text-[10px] text-[#7A5B20]"><div className="flex gap-2"><AlertCircle className="h-4 w-4 shrink-0" /><span>Minimum order is <strong>₹{merchant.minimumOrderValue.toLocaleString('en-IN')}</strong>. Add <strong>₹{shortfall.toLocaleString('en-IN')}</strong> more.</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#F3E4BF]"><div className="h-full bg-[#FFB000]" style={{width:`${Math.min(100,(subtotal/merchant.minimumOrderValue)*100)}%`}} /></div><div className="mt-2"><MinimumOrderBooster shortfall={shortfall} /></div></div>}
-          <button onClick={handleWhatsAppSend} disabled={!canOrder || busy} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#11B35A] py-3.5 text-xs font-black text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50"><MessageCircle className="h-4 w-4" /> {busy ? 'Placing order…' : `Send Order on WhatsApp`}</button><div className="mt-2 grid grid-cols-2 gap-2"><button onClick={handleCopyText} disabled={!canOrder || busy} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#E4E7EC] py-2.5 text-[10px] font-black text-[#344054] disabled:opacity-50">{copied?<Check className="h-3.5 w-3.5 text-[#11B35A]" />:<Copy className="h-3.5 w-3.5" />}{copied?'Copied':'Copy Order'}</button><button onClick={onOpenInvoice} className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#E4E7EC] py-2.5 text-[10px] font-black text-[#344054]"><FileText className="h-3.5 w-3.5 text-[#E30613]" /> Bill / PDF</button></div><button onClick={()=>onNavigate('mail')} className="mt-2 inline-flex w-full items-center justify-center gap-2 py-2 text-[10px] font-black text-[#667085]"><Mail className="h-3.5 w-3.5" /> Send Bill to Email</button>
-        </section></div>
-      </div>}
+  if (savedOrder && cart.length === 0) {
+    return (
+      <div className="rt-cart-page" data-rtc-component="order_success">
+        <div className="rt-container rt-success-wrap">
+          <div className="rt-success-card">
+            <div className="rt-success-icon"><Check /></div>
+            <span className="rt-kicker">Booking saved</span>
+            <h1>Order booked successfully!</h1>
+            <p>Booking <strong>{savedOrder.orderId}</strong> for {savedOrder.totalBoxes} units · ₹{savedOrder.subtotal.toLocaleString('en-IN')} is saved. Send it on WhatsApp so the Sivakasi team can confirm stock and freight.</p>
+            {savedOrder.guestTrackingToken && !isAuthenticated && <div className="rt-guest-token">Guest tracking code: <strong>{savedOrder.guestTrackingToken}</strong></div>}
+            <div className="rt-success-actions">
+              <a className="rt-btn rt-btn-whatsapp" href={getWhatsAppUrl(savedOrder.items, savedOrder.customer, savedOrder.subtotal, savedOrder.orderId, storeInfo)} target="_blank" rel="noreferrer"><MessageCircle /> Send on WhatsApp</a>
+              <button className="rt-btn rt-btn-outline" onClick={handleCopyText}>{copied ? <Check /> : <Copy />} {copied ? 'Copied!' : 'Copy Order Text'}</button>
+              <button className="rt-btn rt-btn-outline" onClick={() => onNavigate(isAuthenticated ? 'myorders' : 'tracker')}><Truck /> Track Order</button>
+              <button className="rt-link-button" onClick={() => { setSavedOrder(null); onNavigate('products'); }}>Continue shopping</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rt-cart-page" data-rtc-component="cart_items">
+      <div className="rt-container">
+        <div className="rt-shop-header">
+          <div><span className="rt-kicker">Order review</span><h1>Your Cart</h1><p>Review your products, enter delivery details and confirm your order.</p></div>
+          {cart.length > 0 && <button className="rt-clear-btn" onClick={clearCart}><Trash2 /> Clear cart</button>}
+        </div>
+
+        {cart.length === 0 ? (
+          <div className="rt-empty-state cart-empty"><ShoppingBag /><h2>Your cart is empty</h2><p>Choose crackers from the live catalogue or open the price list to start building your celebration order.</p><div><button onClick={() => onNavigate('products')}>Browse Products</button><button className="outline" onClick={() => onNavigate('table')}>Open Price List</button></div></div>
+        ) : (
+          <>
+            <div className="rt-cart-progress-strip" role="status" aria-live="polite">
+              <div className="rt-cart-progress-copy"><span>Step 1 of 3 · Cart review</span><strong>{readyMessage}</strong></div>
+              <div className="rt-cart-progress-steps"><i className="done">1</i><span></span><i className={contactOk && meetsMinimum ? 'done' : ''}>2</i><span></span><i>3</i></div>
+            </div>
+            <div className="rt-cart-layout">
+              <section className="rt-cart-items">
+                <div className="rt-cart-value-panel">
+                  <div><span>Varieties</span><strong>{totalItems}</strong></div>
+                  <div><span>Total units</span><strong>{totalBoxes}</strong></div>
+                  <div><span>You save</span><strong>₹{savings.toLocaleString('en-IN')}</strong></div>
+                  <div className="grand"><span>Cart value</span><strong>₹{subtotal.toLocaleString('en-IN')}</strong></div>
+                </div>
+                {cart.map(({ product, quantity }) => {
+                  const live = product as typeof product & { mrpRate?: number; availableQuantity?: number; stockStatus?: string };
+                  const itemSavings = Math.max(0, Number(live.mrpRate || 0) - product.rate) * quantity;
+                  return (
+                    <article className="rt-cart-item" key={product.id}>
+                      <button className="rt-cart-item-image" onClick={() => { setShopIntent({ type: 'search', value: product.name }); onNavigate('products'); }} aria-label={`View ${product.name}`}>
+                        <img loading="lazy" src={getExactProductImage(product)} alt="" />
+                      </button>
+                      <div className="rt-cart-item-main">
+                        <span>{product.category}</span>
+                        <h2>{product.name}</h2>
+                        <p>₹{product.rate.toLocaleString('en-IN')} · {product.unit}{product.pieces ? ` · ${product.pieces}` : ''}</p>
+                        {product.stockStatus === 'LOW_STOCK' && <em className="rt-stock-alert">Few units currently available</em>}
+                        {itemSavings > 0 && <small className="rt-item-saving">Saving ₹{itemSavings.toLocaleString('en-IN')} on this line</small>}
+                      </div>
+                      <div className="rt-cart-item-actions">
+                        <strong>₹{(product.rate * quantity).toLocaleString('en-IN')}</strong>
+                        <div className="rt-qty-control">
+                          <button onClick={() => updateQuantity(product.id, quantity - 1)} aria-label={`Decrease ${product.name}`}><Minus /></button>
+                          <span aria-live="polite">{quantity}</span>
+                          <button onClick={() => updateQuantity(product.id, quantity + 1)} aria-label={`Increase ${product.name}`}><Plus /></button>
+                        </div>
+                        <button className="rt-remove-btn" onClick={() => removeFromCart(product.id)}><Trash2 /> Remove</button>
+                      </div>
+                    </article>
+                  );
+                })}
+                <div className="rt-cart-assurance"><ShieldCheck /><div><strong>Live catalogue protection</strong><span>Prices, product names and availability refresh from your live catalogue. Transport charges are confirmed separately before final payment.</span></div></div>
+                <CartRecommendations onNavigate={() => onNavigate('products')} />
+              </section>
+
+              <aside className="rt-checkout-card">
+              <div className="rt-checkout-head"><div><span className="rt-kicker">Checkout</span><h2>Delivery Details</h2></div><MapPin /></div>
+
+              <div className="rt-form-grid">
+                <label><span>Full name *</span><input value={customerDetails.name} onChange={(e) => updateCustomerDetails({ name: e.target.value })} placeholder="Your name" /></label>
+                <label><span>WhatsApp / phone *</span><input type="tel" value={customerDetails.phone} onChange={(e) => updateCustomerDetails({ phone: e.target.value })} placeholder="10-digit number" /></label>
+                <label><span>City / town *</span><input value={customerDetails.city} onChange={(e) => updateCustomerDetails({ city: e.target.value })} placeholder="Chennai, Madurai..." /></label>
+                <label><span>Pincode</span><input value={customerDetails.pincode} onChange={(e) => updateCustomerDetails({ pincode: e.target.value })} placeholder="Optional" /></label>
+                <label className="full"><span>Email {isAuthenticated ? '' : '(required for guest checkout)'}</span><input type="email" value={customerDetails.email} onChange={(e) => updateCustomerDetails({ email: e.target.value })} placeholder="you@example.com" /></label>
+                <label className="full"><span>Address / landmark</span><textarea rows={3} value={customerDetails.address} onChange={(e) => updateCustomerDetails({ address: e.target.value })} placeholder="Door no., street, landmark or transport godown" /></label>
+                <label className="full"><span>Transport preference</span><select value={customerDetails.transportPreference} onChange={(e) => updateCustomerDetails({ transportPreference: e.target.value })}><option value="Lorry Transport Parcel Office Pickup (Standard & Economical)">Lorry Transport Parcel Office Pickup</option><option value="Direct Sivakasi Godown / Counter Pickup">Direct Sivakasi Godown / Counter Pickup</option><option value="Home Delivery (Subject to local transport availability)">Home Delivery (subject to availability)</option></select></label>
+              </div>
+
+              <div className="rt-coupon-note"><strong>Festive offers</strong><span>Live catalogue prices and active store offers are reflected here automatically. No separate coupon is required.</span></div>
+
+              <div className="rt-checkout-readiness">
+                <div className="rt-readiness-head"><span>Minimum order progress</span><strong>{Math.round(orderProgress)}%</strong></div>
+                <div className="rt-readiness-track"><i style={{ width: `${orderProgress}%` }} /></div>
+                <small>{meetsMinimum ? 'Minimum order reached.' : `₹${shortfall.toLocaleString('en-IN')} more to reach ₹${merchant.minimumOrderValue.toLocaleString('en-IN')}.`}</small>
+              </div>
+              <div className="rt-order-summary">
+                <div><span>Varieties</span><strong>{totalItems}</strong></div>
+                <div><span>Total units</span><strong>{totalBoxes}</strong></div>
+                {savings > 0 && <div className="saving"><span>Catalogue savings</span><strong>−₹{savings.toLocaleString('en-IN')}</strong></div>}
+                <div className="total"><span>Product subtotal</span><strong>₹{subtotal.toLocaleString('en-IN')}</strong></div>
+              </div>
+
+              {!merchant.isBookingOpen && <div className="rt-warning"><AlertCircle /> Season booking is currently closed. Please contact us on WhatsApp for availability.</div>}
+              {merchant.isBookingOpen && !meetsMinimum && (
+                <div className="rt-minimum-warning"><AlertCircle /><div><strong>Minimum order ₹{merchant.minimumOrderValue.toLocaleString('en-IN')}</strong><span>Add ₹{shortfall.toLocaleString('en-IN')} more to continue.</span><div className="rt-progress"><i style={{ width: `${Math.min(100, merchant.minimumOrderValue ? (subtotal / merchant.minimumOrderValue) * 100 : 100)}%` }} /></div><MinimumOrderBooster shortfall={shortfall} /></div></div>
+              )}
+
+              <button className="rt-btn rt-btn-whatsapp rt-full-btn" onClick={handleWhatsAppSend} disabled={!canOrder || busy}><MessageCircle /> {busy ? 'Preparing order…' : 'Send Order on WhatsApp'}</button>
+              <div className="rt-checkout-secondary"><button onClick={handleCopyText} disabled={!canOrder || busy}>{copied ? <Check /> : <Copy />} {copied ? 'Copied' : 'Copy Order Text'}</button><button onClick={onOpenInvoice}><FileText /> View / Print Bill</button></div>
+              <button className="rt-mail-link" onClick={() => onNavigate('mail')}><Mail /> Send Bill to Email</button>
+              <div className="rt-cart-trust-row"><span><ShieldCheck /> Secure booking</span><span><MessageCircle /> WhatsApp support</span><span><Truck /> {storeInfo.city} dispatch</span></div>
+              <p className="rt-checkout-note"><Truck /> {merchant.dispatchPolicy}</p>
+            </aside>
+            </div>
+            <div className="rt-mobile-checkout-bar">
+              <div><span>{totalBoxes} units</span><strong>₹{subtotal.toLocaleString('en-IN')}</strong></div>
+              <button onClick={handleWhatsAppSend} disabled={!canOrder || busy}><MessageCircle /> {busy ? 'Preparing…' : 'Confirm Order'}</button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
-  </div>;
+  );
 };

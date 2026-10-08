@@ -2,6 +2,7 @@
   "name": "RT Crackers Cart",
   "short_name": "RT Crackers",
   "description": "RT Crackers 2026 catalogue and customer ordering cart.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

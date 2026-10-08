@@ -1,45 +1,162 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Filter, Search, SlidersHorizontal, X } from 'lucide-react';
-import { useProducts } from '../context/ProductsContext';
-import { useCategories } from '../context/CategoriesContext';
+import { ChevronDown, Filter, Leaf, Package, Search, SlidersHorizontal, Sparkles, Star, Tag, X, Zap } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard';
+import { QuickOrder } from '../components/QuickOrder';
+import type { Product } from '../data/products';
+import { useCategories } from '../context/CategoriesContext';
+import { useProducts } from '../context/ProductsContext';
 import { useCart } from '../context/CartContext';
+import { ProductDetailScreen } from './ProductDetailScreen';
+import { consumeShopIntent } from '../utils/shopNavigation';
+
+const PRICE_BANDS = [
+  { id: 'all', label: 'Any price', min: 0, max: Infinity },
+  { id: 'u100', label: 'Under ₹100', min: 0, max: 100 },
+  { id: 'u250', label: '₹100–₹250', min: 100, max: 250 },
+  { id: 'u500', label: '₹250–₹500', min: 250, max: 500 },
+  { id: 'u1000', label: '₹500–₹1,000', min: 500, max: 1000 },
+  { id: 'u2000', label: '₹1,000–₹2,000', min: 1000, max: 2000 },
+  { id: 'o2000', label: '₹2,000+', min: 2000, max: Infinity },
+] as const;
+type PriceBand = (typeof PRICE_BANDS)[number]['id'];
+type Availability = 'all' | 'in' | 'low';
+type PackType = 'all' | 'Box' | 'Pkt' | 'Tube';
+type PieceBand = 'all' | '1-10' | '11-25' | '26-50' | '51+';
+type SmartTag = 'all' | 'value' | 'premium' | 'gift' | 'sparkle' | 'sound' | 'aerial' | 'ground' | 'fountain' | 'kids';
+
+const SMART_TAGS: { id: SmartTag; label: string }[] = [
+  { id: 'all', label: 'All products' }, { id: 'value', label: 'Best value' }, { id: 'premium', label: 'Premium' },
+  { id: 'gift', label: 'Gift boxes' }, { id: 'sparkle', label: 'Sparklers' }, { id: 'sound', label: 'Sound crackers' },
+  { id: 'aerial', label: 'Rockets & aerial' }, { id: 'ground', label: 'Ground fun' }, { id: 'fountain', label: 'Fountains' }, { id: 'kids', label: 'Kids special' },
+];
+
+const normalize = (value: unknown) => String(value || '').toLowerCase();
+const matchesTag = (product: Product, tag: SmartTag) => {
+  const text = `${normalize(product.name)} ${normalize(product.category)} ${normalize(product.description)}`;
+  if (tag === 'all') return true;
+  if (tag === 'value') return product.rate <= 250;
+  if (tag === 'premium') return product.rate >= 1000;
+  if (tag === 'gift') return text.includes('gift') || text.includes('combo') || text.includes('pack');
+  if (tag === 'sparkle') return text.includes('sparkler');
+  if (tag === 'sound') return text.includes('sound') || text.includes('bomb') || text.includes('lakshmi') || text.includes('cracker');
+  if (tag === 'aerial') return text.includes('rocket') || text.includes('aerial') || text.includes('shot') || text.includes('sky');
+  if (tag === 'ground') return text.includes('chakkar') || text.includes('ground') || text.includes('wheel');
+  if (tag === 'fountain') return text.includes('fountain') || text.includes('flower pot') || text.includes('sandpot');
+  if (tag === 'kids') return text.includes('kids') || text.includes('snake') || text.includes('novelty');
+  return true;
+};
 
 export const ProductsScreen: React.FC = () => {
   const { products, isLoading } = useProducts();
   const { categories } = useCategories();
   const { totalBoxes, subtotal, setIsCartOpen } = useCart();
-  const [search, setSearch] = useState(() => sessionStorage.getItem('rt_product_search') || '');
-  const [selectedCategory, setSelectedCategory] = useState(() => sessionStorage.getItem('rt_category_filter') || 'All');
-  const [sort, setSort] = useState<'default'|'low'|'high'>('default');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [price, setPrice] = useState<'all'|'u500'|'u1000'|'o1000'>('all');
+  const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [priceBand, setPriceBand] = useState<PriceBand>('all');
+  const [availability, setAvailability] = useState<Availability>('all');
+  const [packType, setPackType] = useState<PackType>('all');
+  const [pieceBand, setPieceBand] = useState<PieceBand>('all');
+  const [smartTag, setSmartTag] = useState<SmartTag>('all');
+  const [greenOnly, setGreenOnly] = useState(false);
+  const [bestOnly, setBestOnly] = useState(false);
+  const [featuredOnly, setFeaturedOnly] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [sort, setSort] = useState<'recommended' | 'low' | 'high' | 'name'>('recommended');
 
   useEffect(() => {
-    const s = sessionStorage.getItem('rt_product_search'); if (s !== null) { setSearch(s); sessionStorage.removeItem('rt_product_search'); }
-    const c = sessionStorage.getItem('rt_category_filter'); if (c !== null) { setSelectedCategory(c); sessionStorage.removeItem('rt_category_filter'); }
-  }, []);
+    const setSearchFromEvent = (event: Event) => setSearch((event as CustomEvent<string>).detail || '');
+    const setCategoryFromEvent = (event: Event) => { setSelectedCategory((event as CustomEvent<string>).detail || 'All'); setBestOnly(false); };
+    const setBudgetFromEvent = (event: Event) => { const budget = (event as CustomEvent<string>).detail as PriceBand; setPriceBand(PRICE_BANDS.some((band) => band.id === budget) ? budget : 'all'); };
+    const setBest = () => setBestOnly(true);
+    window.addEventListener('rt-search-products', setSearchFromEvent);
+    window.addEventListener('rt-select-category', setCategoryFromEvent);
+    window.addEventListener('rt-budget-filter', setBudgetFromEvent);
+    window.addEventListener('rt-best-sellers', setBest);
+    const pending = consumeShopIntent();
+    if (pending?.type === 'search') setSearch(pending.value);
+    if (pending?.type === 'category') setSelectedCategory(pending.value);
+    if (pending?.type === 'budget') setPriceBand(PRICE_BANDS.some((band) => band.id === pending.value) ? pending.value as PriceBand : 'all');
+    if (pending?.type === 'best-sellers') setBestOnly(true);
+    const syncDetailFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      const pathMatch = window.location.pathname.match(/^\/product\/(\d+)$/);
+      const id = Number(pathMatch?.[1] || params.get('product'));
+      setSelectedProduct(id ? products.find((item) => item.id === id) || null : null);
+    };
+    window.addEventListener('popstate', syncDetailFromUrl);
+    const params = new URLSearchParams(window.location.search);
+    const query = params.get('q');
+    const pathMatch = window.location.pathname.match(/^\/product\/(\d+)$/);
+    const productId = Number(pathMatch?.[1] || params.get('product'));
+    if (query) setSearch(query);
+    if (productId) { const product = products.find((item) => item.id === productId); if (product) setSelectedProduct(product); }
+    return () => {
+      window.removeEventListener('rt-search-products', setSearchFromEvent); window.removeEventListener('rt-select-category', setCategoryFromEvent);
+      window.removeEventListener('rt-budget-filter', setBudgetFromEvent); window.removeEventListener('rt-best-sellers', setBest); window.removeEventListener('popstate', syncDetailFromUrl);
+    };
+  }, [products]);
 
-  const filtered = useMemo(() => products.filter(p => {
-    if (selectedCategory !== 'All' && p.category !== selectedCategory) return false;
-    if (search.trim() && !(`${p.name} ${p.category} ${p.sNo}`.toLowerCase().includes(search.toLowerCase().trim()))) return false;
-    if (price === 'u500' && p.rate >= 500) return false;
-    if (price === 'u1000' && (p.rate < 500 || p.rate >= 1000)) return false;
-    if (price === 'o1000' && p.rate < 1000) return false;
-    return true;
-  }).sort((a,b) => sort === 'low' ? a.rate-b.rate : sort === 'high' ? b.rate-a.rate : a.sNo-b.sNo), [products, search, selectedCategory, sort, price]);
+  const categoryNames = useMemo(() => ['All', ...categories.filter((c) => c.is_active).map((c) => c.category_name)], [categories]);
+  const activeFilterCount = [selectedCategory !== 'All', priceBand !== 'all', availability !== 'all', packType !== 'all', pieceBand !== 'all', smartTag !== 'all', greenOnly, bestOnly, featuredOnly, !!search].filter(Boolean).length;
+  const resetFilters = () => { setSearch(''); setSelectedCategory('All'); setPriceBand('all'); setAvailability('all'); setPackType('all'); setPieceBand('all'); setSmartTag('all'); setGreenOnly(false); setBestOnly(false); setFeaturedOnly(false); };
 
-  return <div className="min-h-[70vh] bg-[#F8F9FB] py-6 pb-24 sm:py-8 md:pb-10" data-rtc-component="product_listing">
-    <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-[11px] font-black uppercase tracking-[.16em] text-[#E30613]">Product catalogue</p><h1 className="mt-1 font-display text-2xl font-black text-[#101828] sm:text-3xl">All Crackers <span className="text-[#E30613]">with Photos</span></h1><p className="mt-1 text-xs text-[#667085]">Browse factory rates, filter by category and add directly to cart.</p></div>{totalBoxes > 0 && <button onClick={() => setIsCartOpen(true)} className="rounded-xl bg-[#E30613] px-4 py-3 text-xs font-black text-white">View Cart · {totalBoxes} items · ₹{subtotal.toLocaleString('en-IN')}</button>}</div>
-      <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="hidden lg:block"><div className="sticky top-28 rounded-2xl border border-[#EAECF0] bg-white p-4 shadow-sm"><div className="flex items-center gap-2 text-sm font-black text-[#101828]"><Filter className="h-4 w-4 text-[#E30613]" /> Filters</div><label className="mt-5 block text-[10px] font-black uppercase tracking-[.12em] text-[#667085]">Category</label><div className="mt-2 max-h-[360px] space-y-1 overflow-auto">{['All', ...categories.filter(c=>c.is_active).map(c=>c.category_name)].map(cat => <button key={cat} onClick={() => setSelectedCategory(cat)} className={`block w-full rounded-lg px-2.5 py-2 text-left text-[11px] font-bold ${selectedCategory === cat ? 'bg-[#E30613]/8 text-[#E30613]' : 'text-[#475467] hover:bg-[#F8F9FB]'}`}>{cat}</button>)}</div><label className="mt-5 block text-[10px] font-black uppercase tracking-[.12em] text-[#667085]">Price</label><div className="mt-2 grid gap-1">{[['all','Any price'],['u500','Under ₹500'],['u1000','₹500 – ₹1,000'],['o1000','₹1,000+']].map(([id,label]) => <button key={id} onClick={() => setPrice(id as any)} className={`rounded-lg px-2.5 py-2 text-left text-[11px] font-bold ${price===id ? 'bg-[#FFF4E5] text-[#A15C00]' : 'text-[#475467] hover:bg-[#F8F9FB]'}`}>{label}</button>)}</div></div></aside>
-        <section>
-          <div className="mb-4 rounded-2xl border border-[#EAECF0] bg-white p-3 shadow-sm"><div className="flex flex-col gap-3 md:flex-row"><div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]" /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search sparklers, flower pots, rockets..." className="h-11 w-full rounded-xl border border-[#E4E7EC] bg-[#F8F9FB] pl-10 pr-9 text-sm outline-none focus:border-[#E30613] focus:bg-white" />{search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-[#98A2B3]"><X className="h-4 w-4" /></button>}</div><div className="flex gap-2"><button onClick={() => setDrawerOpen(v=>!v)} className="inline-flex items-center gap-2 rounded-xl border border-[#E4E7EC] px-3 py-2 text-xs font-black text-[#344054] lg:hidden"><SlidersHorizontal className="h-4 w-4" /> Filters</button><select value={sort} onChange={e => setSort(e.target.value as any)} className="h-11 rounded-xl border border-[#E4E7EC] bg-white px-3 text-xs font-bold text-[#344054] outline-none"><option value="default">Sort: Featured</option><option value="low">Price: Low to High</option><option value="high">Price: High to Low</option></select></div></div>{drawerOpen && <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-[#F8F9FB] p-3 lg:hidden"><select value={selectedCategory} onChange={e=>setSelectedCategory(e.target.value)} className="h-10 rounded-lg border border-[#E4E7EC] bg-white px-2 text-xs font-bold"><option value="All">All categories</option>{categories.filter(c=>c.is_active).map(c=><option key={c.category_id} value={c.category_name}>{c.category_name}</option>)}</select><select value={price} onChange={e=>setPrice(e.target.value as any)} className="h-10 rounded-lg border border-[#E4E7EC] bg-white px-2 text-xs font-bold"><option value="all">Any price</option><option value="u500">Under ₹500</option><option value="u1000">₹500 – ₹1,000</option><option value="o1000">₹1,000+</option></select></div>}</div>
-          <div className="mb-3 flex items-center justify-between text-[11px] font-bold text-[#667085]"><span>{isLoading ? 'Loading products…' : `${filtered.length} products`}</span>{selectedCategory !== 'All' && <button onClick={() => setSelectedCategory('All')} className="text-[#E30613]">Clear category</button>}</div>
-          {isLoading ? <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">{Array.from({length:8}).map((_,i)=><div key={i} className="h-72 animate-pulse rounded-2xl bg-white" />)}</div> : <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">{filtered.map(p => <ProductCard key={p.id} product={p} />)}</div>}
-          {!isLoading && !filtered.length && <div className="rounded-2xl border border-dashed border-[#D0D5DD] bg-white p-12 text-center"><div className="font-display text-lg font-black text-[#101828]">No products found</div><p className="mt-1 text-xs text-[#667085]">Try a different search or category.</p></div>}
-        </section>
+  const filtered = useMemo(() => {
+    const band = PRICE_BANDS.find((item) => item.id === priceBand) || PRICE_BANDS[0];
+    const q = search.trim().toLowerCase();
+    const piecesMatch = (product: Product) => {
+      if (pieceBand === 'all') return true;
+      const pieces = Number(product.pieces?.match(/\d+/)?.[0] || 0);
+      if (!pieces) return false;
+      if (pieceBand === '1-10') return pieces <= 10; if (pieceBand === '11-25') return pieces >= 11 && pieces <= 25; if (pieceBand === '26-50') return pieces >= 26 && pieces <= 50; return pieces >= 51;
+    };
+    return products.filter((product) => {
+      const text = `${normalize(product.name)} ${normalize(product.category)} ${normalize(product.description)}`;
+      if (selectedCategory !== 'All' && product.category !== selectedCategory) return false;
+      if (!(product.rate >= band.min && product.rate < band.max + (band.max === Infinity ? 1 : 0))) return false;
+      if (availability === 'in' && product.stockStatus === 'OUT_OF_STOCK') return false;
+      if (availability === 'low' && product.stockStatus !== 'LOW_STOCK') return false;
+      if (packType !== 'all' && product.unit !== packType) return false;
+      if (!piecesMatch(product)) return false;
+      if (greenOnly && !(product as Product & { isGreenCracker?: boolean }).isGreenCracker) return false;
+      if (bestOnly && !(product.popular || (product as Product & { isBestseller?: boolean }).isBestseller)) return false;
+      if (featuredOnly && !(product.featured || (product as Product & { isFeatured?: boolean }).isFeatured)) return false;
+      if (!matchesTag(product, smartTag)) return false;
+      if (q && !text.includes(q) && !String(product.sNo).includes(q)) return false;
+      return true;
+    }).sort((a, b) => sort === 'low' ? a.rate - b.rate : sort === 'high' ? b.rate - a.rate : sort === 'name' ? a.name.localeCompare(b.name) : Number(!!b.popular || !!b.featured) - Number(!!a.popular || !!a.featured) || a.sNo - b.sNo);
+  }, [products, selectedCategory, priceBand, availability, packType, pieceBand, smartTag, greenOnly, bestOnly, featuredOnly, search, sort]);
+
+  const openDetail = (product: Product) => { setSelectedProduct(product); window.history.pushState({ product: product.id }, '', `/product/${product.id}`); };
+  const closeDetail = () => { setSelectedProduct(null); window.history.pushState({}, '', '/products'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const FilterControls = () => <>
+    <div className="rt-smart-filter-highlight"><Sparkles /><div><strong>Smart shopping filters</strong><small>20+ ways to narrow the catalogue without losing the festive feel.</small></div></div>
+    <div className="rt-filter-group"><label>Smart picks</label><div className="rt-filter-chip-grid">{SMART_TAGS.map((tag) => <button key={tag.id} className={smartTag === tag.id ? 'selected' : ''} onClick={() => setSmartTag(tag.id)}>{tag.label}</button>)}</div></div>
+    <div className="rt-filter-group"><label>Category</label><div className="rt-filter-option-list">{categoryNames.map((name) => <button key={name} className={selectedCategory === name ? 'selected' : ''} onClick={() => setSelectedCategory(name)}>{name}<span>{name === 'All' ? products.length : products.filter((p) => p.category === name).length}</span></button>)}</div></div>
+    <div className="rt-filter-group"><label>Budget</label><div className="rt-filter-chip-grid">{PRICE_BANDS.map((band) => <button key={band.id} className={priceBand === band.id ? 'selected' : ''} onClick={() => setPriceBand(band.id)}>{band.label}</button>)}</div></div>
+    <div className="rt-filter-group"><label>Pack format</label><div className="rt-filter-chip-grid">{(['all', 'Box', 'Pkt', 'Tube'] as PackType[]).map((item) => <button key={item} className={packType === item ? 'selected' : ''} onClick={() => setPackType(item)}>{item === 'all' ? 'Any pack' : item}</button>)}</div></div>
+    <div className="rt-filter-group"><label>Pieces per pack</label><div className="rt-filter-chip-grid">{([['all','Any quantity'],['1-10','1–10'],['11-25','11–25'],['26-50','26–50'],['51+','51+']] as [PieceBand,string][]).map(([id,label]) => <button key={id} className={pieceBand === id ? 'selected' : ''} onClick={() => setPieceBand(id)}>{label}</button>)}</div></div>
+    <div className="rt-filter-group"><label>Availability</label><div className="rt-filter-chip-grid"><button className={availability === 'all' ? 'selected' : ''} onClick={() => setAvailability('all')}>All</button><button className={availability === 'in' ? 'selected' : ''} onClick={() => setAvailability('in')}>In stock</button><button className={availability === 'low' ? 'selected' : ''} onClick={() => setAvailability('low')}>Few left</button></div></div>
+    <div className="rt-filter-group"><label>Special qualities</label><div className="rt-filter-chip-grid"><button className={greenOnly ? 'selected' : ''} onClick={() => setGreenOnly(!greenOnly)}><Leaf /> Green crackers</button><button className={bestOnly ? 'selected' : ''} onClick={() => setBestOnly(!bestOnly)}><Star /> Best sellers</button><button className={featuredOnly ? 'selected' : ''} onClick={() => setFeaturedOnly(!featuredOnly)}><Tag /> Featured</button></div></div>
+    <button className="rt-filter-reset" onClick={resetFilters}>Reset all filters</button>
+  </>;
+
+  if (selectedProduct) {
+    const related = products.filter((product) => product.category === selectedProduct.category && product.id !== selectedProduct.id);
+    return <ProductDetailScreen product={selectedProduct} related={related} onBack={closeDetail} onSelectRelated={openDetail} />;
+  }
+
+  return <div className="rt-shop-page" data-rtc-component="product_grid">
+    <div className="rt-container">
+      <div className="rt-shop-header"><div><span className="rt-kicker">RedThunder catalogue</span><h1>Shop all crackers</h1><p>Search 127 live products with smart filters for price, style, pack size, availability and customer intent.</p></div>{totalBoxes > 0 && <button className="rt-cart-pill" onClick={() => setIsCartOpen(true)}>Cart {totalBoxes} · ₹{subtotal.toLocaleString('en-IN')}</button>}</div>
+      <QuickOrder />
+      <div className="rt-shop-layout">
+        <aside className={`rt-filter-sidebar ${filtersOpen ? 'open' : ''}`} aria-label="Product filters"><div className="rt-filter-head"><strong><Filter /> Filters <span>{activeFilterCount}</span></strong><button onClick={() => setFiltersOpen(false)} aria-label="Close filters"><X /></button></div><FilterControls /></aside>
+        <div className="rt-shop-results">
+          <div className="rt-shop-toolbar"><div className="rt-shop-toolbar-search"><Search aria-hidden="true" /><input value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Search products in catalogue" placeholder="Search products, categories or product number" />{search && <button type="button" onClick={() => setSearch('')} aria-label="Clear product search"><X /></button>}</div><div className="rt-result-count"><strong>{filtered.length}</strong> products {activeFilterCount > 0 && <span>· {activeFilterCount} filters</span>}</div><div className="rt-toolbar-actions"><button className="rt-mobile-filter-btn" onClick={() => setFiltersOpen(true)}><SlidersHorizontal /> Filters {activeFilterCount > 0 && <b>{activeFilterCount}</b>}</button><label className="rt-sort"><span>Sort:</span><select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}><option value="recommended">Recommended</option><option value="low">Price: Low to High</option><option value="high">Price: High to Low</option><option value="name">Name A–Z</option></select><ChevronDown /></label></div></div>
+          <div className="rt-filter-summary"><span><Zap /> {filtered.length} matching products</span>{activeFilterCount > 0 && <button onClick={resetFilters}>Clear {activeFilterCount} filters <X /></button>}</div>
+          {isLoading ? <div className="rt-product-grid">{Array.from({ length: 8 }).map((_, index) => <div className="rt-skeleton rt-product-skeleton" key={index} />)}</div> : filtered.length ? <div className="rt-product-grid">{filtered.map((product) => <ProductCard key={product.id} product={product} onViewDetails={() => openDetail(product)} />)}</div> : <div className="rt-empty-state"><Package /><h2>No products found</h2><p>Try a broader smart filter or clear your filters.</p><button onClick={resetFilters}>Reset filters</button></div>}
+        </div>
       </div>
     </div>
   </div>;
