@@ -49,6 +49,19 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
 
   useEffect(() => { if (session) refreshProfile(); else setUser(null); }, [session?.access_token]);
 
+  // Silently renew the access token a minute before it expires, so order history, reviews and
+  // profile calls keep working in long sessions instead of failing with 401 after ~1 hour.
+  useEffect(() => {
+    if (!session?.refresh_token) return;
+    const expiresAt = session.expires_at ?? (Math.floor(Date.now() / 1000) + (session.expires_in || 3600));
+    const delay = Math.max(5_000, (expiresAt - 60) * 1000 - Date.now());
+    const timer = window.setTimeout(async () => {
+      try { const fresh = await authRefresh(session); setSession(fresh); setAuthUser(fresh.user); }
+      catch { clearSession(); setSession(null); setAuthUser(null); setUser(null); }
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [session?.access_token]);
+
   const login = async (name: string, phone: string, email = '', password = '') => {
     if (!email || !password) throw new Error('Email and password are required for customer sign in.');
     const s = await authPasswordSignIn(email.trim(), password);

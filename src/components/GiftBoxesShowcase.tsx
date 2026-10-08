@@ -42,8 +42,8 @@ export const GiftBoxesShowcase: React.FC<GiftBoxesShowcaseProps> = ({ isStandalo
           
           {/* Visual Showcase Card */}
           <div className="lg:col-span-4 rounded-2xl overflow-hidden border border-stone-800 dark:border-stone-800 light:border-stone-200 bg-stone-950 dark:bg-stone-950 light:bg-white relative group shadow-xl">
-            <img
-              src="/src/assets/images/redthunder_gift_boxes_1791297541022.jpg"
+            <img loading="lazy" decoding="async"
+              src="/images/redthunder_gift_boxes_1791297541022.jpg"
               alt="RedThunder Sivakasi Festival Gift Boxes"
               referrerPolicy="no-referrer"
               className="w-full h-64 sm:h-80 object-cover object-center group-hover:scale-105 transition-transform duration-500"

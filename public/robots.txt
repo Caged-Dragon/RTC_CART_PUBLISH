@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /my-orders
+Disallow: /login
+
+Sitemap: https://cart.rtcrackers.com/sitemap.xml

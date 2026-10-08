@@ -301,7 +301,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
               <span>REDTHUNDER CRACKERS, Sivakasi • Genuine 2026 Factory Prices • Safe Celebrations</span>
             </div>
             <div className="text-right font-semibold text-stone-800">
-              WhatsApp Booking: +91 8124100501
+              WhatsApp Booking: {STORE_INFO.phoneDisplay}
             </div>
           </div>
 

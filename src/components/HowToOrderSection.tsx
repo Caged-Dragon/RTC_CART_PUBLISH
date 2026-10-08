@@ -16,7 +16,7 @@ export const HowToOrderSection: React.FC = () => {
     {
       num: '02',
       title: 'Send Order on WhatsApp',
-      desc: 'Click "Order on WhatsApp". Your complete itemized list and delivery location will be formatted and sent to 8124100501.',
+      desc: 'Click "Order on WhatsApp". Your complete itemized list and delivery location will be formatted and sent to ' + STORE_INFO.phoneDisplay + '.',
     },
     {
       num: '03',

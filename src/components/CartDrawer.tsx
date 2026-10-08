@@ -188,7 +188,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOpenCheckout, onOpenIn
                   className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold text-sm shadow-lg shadow-red-950/60 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.99]"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  <span>Order on WhatsApp (8124100501)</span>
+                  <span>Checkout &amp; Order on WhatsApp</span>
                   <ArrowRight className="w-4 h-4 ml-auto" />
                 </button>
 

@@ -1,19 +1,18 @@
 import { CartItem, CustomerDetails } from '../context/CartContext';
-import { STORE_INFO } from '../data/products';
+import { STORE_INFO as FALLBACK_STORE } from '../data/products';
+
+type StoreRef = { name: string; phone: string };
 
 export function formatWhatsAppMessage(
   cart: CartItem[],
   customer: CustomerDetails,
   subtotal: number,
-  orderId: string
+  orderId: string,
+  store: StoreRef = FALLBACK_STORE
 ): string {
-  const dateStr = new Date().toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  const dateStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  let message = `💥 *${STORE_INFO.name} - 2026 ORDER* 💥\n`;
+  let message = `💥 *${store.name} - 2026 ORDER* 💥\n`;
   message += `━━━━━━━━━━━━━━━━━━━━━\n`;
   message += `🔖 *Order ID:* ${orderId}\n`;
   message += `📅 *Date:* ${dateStr}\n\n`;
@@ -42,7 +41,6 @@ export function formatWhatsAppMessage(
   message += `\n📍 *Dispatch Location:* Sivakasi, Tamil Nadu\n`;
   message += `⚠️ *Note:* Please confirm product availability & transport delivery charges to ${customer.city || 'my location'} before payment.\n`;
   message += `\nThank you! 🙏`;
-
   return message;
 }
 
@@ -50,9 +48,23 @@ export function getWhatsAppUrl(
   cart: CartItem[],
   customer: CustomerDetails,
   subtotal: number,
-  orderId: string
+  orderId: string,
+  store: StoreRef = FALLBACK_STORE
 ): string {
-  const text = formatWhatsAppMessage(cart, customer, subtotal, orderId);
-  const encodedText = encodeURIComponent(text);
-  return `https://wa.me/${STORE_INFO.phone}?text=${encodedText}`;
+  const text = formatWhatsAppMessage(cart, customer, subtotal, orderId, store);
+  return `https://wa.me/${store.phone}?text=${encodeURIComponent(text)}`;
+}
+
+/**
+ * Opens WhatsApp reliably after an async step (e.g. saving the order).
+ * Browsers block window.open() once the click's user-gesture is spent, so we open a blank tab
+ * synchronously inside the click handler and point it at WhatsApp afterwards. Falls back to
+ * same-tab navigation if popups are blocked.
+ */
+export function openWhatsAppAfter(getUrl: () => Promise<string>): Promise<void> {
+  const tab = window.open('', '_blank');
+  return getUrl().then(
+    url => { if (tab) tab.location.href = url; else window.location.assign(url); },
+    err => { tab?.close(); throw err; }
+  );
 }

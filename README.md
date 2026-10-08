@@ -1,20 +1,36 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# RT Crackers – Customer Cart (cart.rtcrackers.com)
 
-# Run and deploy your AI Studio app
+React 19 + Vite + Tailwind storefront backed by Supabase (project `RTCrackers`). Orders are booked in the
+database and then sent to the Sivakasi desk on WhatsApp (no online payment).
 
-This contains everything you need to run your app locally.
+## Run locally
+```
+npm install
+cp .env.example .env.local     # set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY
+npm run dev
+```
+`npm run lint` type-checks, `npm run build` creates `dist/`.
 
-View your app in AI Studio: https://ai.studio/apps/c6019d5b-704c-47c2-89b4-391f9a432f23
+## What lives where
+- `src/context/*` – data providers (products, categories, store + merchant rules, auth, cart, theme, toasts)
+- `src/screens/*`, `src/components/*` – UI. Screens are code-split with `React.lazy`.
+- `public/images/*` – catalogue photos (served as `/images/...`; cached for a year by `vercel.json`)
+- `supabase/*.sql` – earlier setup scripts; `supabase/migrations/` – reviewed, not-yet-applied changes
+- `DEPLOYMENT.md` – Vercel set-up
 
-## Run Locally
+## Business rules come from the database
+`company_profile` (name, address, WhatsApp number, logo) and `merchant_settings` (minimum order value,
+season-booking open/closed, booking number) are read at runtime – change them in Supabase/admin and the
+site follows, no redeploy.
 
-**Prerequisites:**  Node.js
+## Storefront features
+- Real URLs per screen (`/products`, `/price-list`, `/cart` …) with Back-button support and per-page titles
+- Quick Order by S.No (`25x4, 97, 12`), price-band filters, live result count
+- Minimum-order progress bar with one-click "quick adds"; season-booking switch
+- Order saved once, then re-sendable on WhatsApp; guest tracking code shown on success
+- Cart auto-syncs with live catalogue prices; silent login-token refresh; error boundary; installable PWA
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Database policy
+This app only **reads** `products`, `product_categories`, `company_profile`, `merchant_settings`, offers and
+reviews, and calls the existing `create_order` RPC. The Supabase schema is shared with other sites, so nothing
+here alters it. `supabase/migrations/*` is optional and must be reviewed against every site before it is run.

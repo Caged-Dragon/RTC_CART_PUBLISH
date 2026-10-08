@@ -26,3 +26,8 @@ If these two email identities do not yet exist in Supabase Auth, create them in 
 
 ## Company editor
 The admin Company Control screen updates `public.company_profile`. The customer website reads that row at runtime. Logo changes are made through the `logo_url` field using a public HTTPS image URL.
+
+## After deploying
+1. Run `supabase/migrations/20261007_order_rules_and_policy_cleanup.sql` in the Supabase SQL editor (reviewed; adds server-side minimum-order / season checks).
+2. Supabase dashboard > Authentication > Passwords: enable **Leaked password protection**.
+3. Open the site once on a phone: the browser should offer **Install app** (icons + service worker are now valid).

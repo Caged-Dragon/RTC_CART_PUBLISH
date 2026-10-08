@@ -2,18 +2,18 @@ import { Product } from '../data/products';
 
 // High-fidelity image assets generated specifically for each cracker type
 export const CRACKER_IMAGES = {
-  sparklers: '/src/assets/images/redthunder_sparklers_1791297554442.jpg',
-  potsAndFountains: '/src/assets/images/redthunder_pots_fountains_1791299034674.jpg',
-  chakkarsAndWheels: '/src/assets/images/redthunder_peacock_chakkars_1791301133347.jpg',
-  soundAndBombs: '/src/assets/images/redthunder_sound_crackers_1791301117609.jpg',
-  rockets: '/src/assets/images/redthunder_sky_rockets_1791303603553.jpg',
-  repeatingShots: '/src/assets/images/redthunder_aerial_shots_1791299049699.jpg',
-  aerialShells: '/src/assets/images/redthunder_aerial_shells_1791303651159.jpg',
-  garlandsWala: '/src/assets/images/redthunder_garlands_wala_1791303620827.jpg',
-  kidsNovelties: '/src/assets/images/redthunder_kids_novelties_1791303636279.jpg',
-  twinklingStars: '/src/assets/images/redthunder_twinkling_stars_1791303667579.jpg',
-  giftBoxes: '/src/assets/images/redthunder_gift_boxes_1791297541022.jpg',
-  heroCrackers: '/src/assets/images/redthunder_hero_crackers_1791297525760.jpg',
+  sparklers: '/images/redthunder_sparklers_1791297554442.jpg',
+  potsAndFountains: '/images/redthunder_pots_fountains_1791299034674.jpg',
+  chakkarsAndWheels: '/images/redthunder_peacock_chakkars_1791301133347.jpg',
+  soundAndBombs: '/images/redthunder_sound_crackers_1791301117609.jpg',
+  rockets: '/images/redthunder_sky_rockets_1791303603553.jpg',
+  repeatingShots: '/images/redthunder_aerial_shots_1791299049699.jpg',
+  aerialShells: '/images/redthunder_aerial_shells_1791303651159.jpg',
+  garlandsWala: '/images/redthunder_garlands_wala_1791303620827.jpg',
+  kidsNovelties: '/images/redthunder_kids_novelties_1791303636279.jpg',
+  twinklingStars: '/images/redthunder_twinkling_stars_1791303667579.jpg',
+  giftBoxes: '/images/redthunder_gift_boxes_1791297541022.jpg',
+  heroCrackers: '/images/redthunder_hero_crackers_1791297525760.jpg',
 };
 
 /**

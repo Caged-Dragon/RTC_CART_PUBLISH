@@ -13,8 +13,8 @@ export const Hero: React.FC<HeroProps> = ({ onExploreCatalog, onExploreTable }) 
     <section data-rtc-component="hero" className="relative overflow-hidden bg-stone-950 border-b border-stone-800">
       {/* Background Image with Contrast Scrim */}
       <div className="absolute inset-0 z-0">
-        <img
-          src="/src/assets/images/redthunder_hero_crackers_1791297525760.jpg"
+        <img decoding="async"
+          src="/images/redthunder_hero_crackers_1791297525760.jpg"
           alt="RedThunder Sivakasi fireworks celebration"
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover object-center opacity-35"
@@ -75,7 +75,7 @@ export const Hero: React.FC<HeroProps> = ({ onExploreCatalog, onExploreTable }) 
               className="px-4 py-3.5 rounded-lg bg-emerald-950/90 text-emerald-300 border border-emerald-800/80 hover:bg-emerald-900 font-medium text-sm transition-colors flex items-center gap-2"
             >
               <MessageCircle className="w-4 h-4 text-emerald-400" />
-              <span>WhatsApp: 8124100501</span>
+              <span>WhatsApp: {STORE_INFO.phoneDisplay}</span>
             </a>
           </div>
 

@@ -135,7 +135,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               {/* Icon / Thumbnail */}
               {toast.productImage ? (
                 <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-stone-700 bg-stone-950">
-                  <img
+                  <img loading="lazy" decoding="async"
                     src={toast.productImage}
                     alt="Product"
                     className="w-full h-full object-cover"

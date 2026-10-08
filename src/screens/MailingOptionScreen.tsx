@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useToast } from '../context/ToastContext';
 import { Mail, Send, CheckCircle2, FileText, Printer, AlertCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useStore } from '../context/StoreContext';
@@ -8,6 +9,7 @@ interface MailingOptionScreenProps {
 }
 
 export const MailingOptionScreen: React.FC<MailingOptionScreenProps> = ({ onOpenInvoice }) => {
+  const { showToast } = useToast();
   const { storeInfo: STORE_INFO } = useStore();
   const { cart, subtotal, totalBoxes, customerDetails, updateCustomerDetails } = useCart();
   const [recipientEmail, setRecipientEmail] = useState(customerDetails.email || '');
@@ -44,8 +46,8 @@ export const MailingOptionScreen: React.FC<MailingOptionScreenProps> = ({ onOpen
     body += `DISPATCH TERMS:\n`;
     body += `• Dispatched directly from Sivakasi against payment receipt only.\n`;
     body += `• Delivery freight is charged by lorry transport to your town parcel office.\n`;
-    body += `• WhatsApp Booking Desk: +91 8124100501\n`;
-    body += `• Office: ${STORE_INFO.address}, Sivakasi - 626189\n\n`;
+    body += `• WhatsApp Booking Desk: ${STORE_INFO.phoneDisplay}\n`;
+    body += `• Office: ${STORE_INFO.address}, ${STORE_INFO.city} - ${STORE_INFO.pincode}\n\n`;
     body += `Best regards,\nRedThunder Crackers Sivakasi`;
 
     return body;
@@ -53,7 +55,7 @@ export const MailingOptionScreen: React.FC<MailingOptionScreenProps> = ({ onOpen
 
   const handleSendViaBackend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recipientEmail.trim()) { alert('Please enter a valid email address'); return; }
+    if (!recipientEmail.trim()) { showToast({ type: 'warning', message: 'Please enter a valid email address' }); return; }
     setSending(true); setStatusMessage(null);
     updateCustomerDetails({ email: recipientEmail, name: customerName, notes });
     const body = generateEmailBody();

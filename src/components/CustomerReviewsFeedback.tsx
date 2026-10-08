@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../context/ToastContext';
 import {
   Star,
   MessageSquare,
@@ -47,6 +48,7 @@ export const CustomerReviewsFeedback: React.FC<CustomerReviewsFeedbackProps> = (
   prefilledOrderId = '',
   onFeedbackSubmitted,
 }) => {
+  const { showToast } = useToast();
   const { storeInfo: STORE_INFO } = useStore();
   const [reviews, setReviews] = useState<CustomerReview[]>([]);
   const { session, isAuthenticated } = useAuth();
@@ -97,10 +99,10 @@ export const CustomerReviewsFeedback: React.FC<CustomerReviewsFeedbackProps> = (
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAuthenticated || !session?.access_token) { alert('Please sign in before submitting a review.'); return; }
+    if (!isAuthenticated || !session?.access_token) { showToast({ type: 'warning', message: 'Please sign in before submitting a review.' }); return; }
     const selected = orders.find(o => o.orderId === formOrderId);
-    if (!selected?.dbId) { alert('Select one of your completed orders.'); return; }
-    if (!formComment.trim()) { alert('Please enter your review comments.'); return; }
+    if (!selected?.dbId) { showToast({ type: 'warning', message: 'Select one of your completed orders.' }); return; }
+    if (!formComment.trim()) { showToast({ type: 'warning', message: 'Please enter your review comments.' }); return; }
     try {
       const saved:any = await rpc('submit_customer_review',{p_order_id:selected.dbId,p_rating:formRating,p_comment:formComment.trim(),p_tags:selectedTags},session.access_token);
       const r=saved;
@@ -108,7 +110,7 @@ export const CustomerReviewsFeedback: React.FC<CustomerReviewsFeedbackProps> = (
       setSubmitSuccess(true); setFormComment('');
       setTimeout(()=>{setSubmitSuccess(false);setIsFormOpen(false);},2500);
       onFeedbackSubmitted?.();
-    } catch(err:any){ alert(err.message || 'Unable to submit review.'); }
+    } catch(err:any){ showToast({ type: 'error', message: err.message || 'Unable to submit review.' }); }
   };
 
   // Calculations

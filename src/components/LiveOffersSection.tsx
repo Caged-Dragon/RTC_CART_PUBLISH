@@ -17,7 +17,7 @@ export const LiveOffersSection: React.FC = () => {
         {offers.map(o => {
           const banner=(o.offer_banners||[]).find((b:any)=>b.is_active);
           return <article key={o.id} className="overflow-hidden rounded-xl border border-stone-800 bg-stone-900/80">
-            {banner?.image_url && <img src={banner.image_url} alt={banner.alt_text || o.title} className="w-full h-40 object-cover" />}
+            {banner?.image_url && <img loading="lazy" decoding="async" src={banner.image_url} alt={banner.alt_text || o.title} className="w-full h-40 object-cover" />}
             <div className="p-4 space-y-2">
               <div className="flex items-start justify-between gap-3"><h3 className="font-bold text-white">{o.title}</h3><Tag className="w-4 h-4 text-amber-400 shrink-0"/></div>
               {o.short_title && <p className="text-amber-300 text-xs font-semibold">{o.short_title}</p>}
