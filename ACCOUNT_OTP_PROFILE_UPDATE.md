@@ -36,3 +36,10 @@ The function expects Supabase's hosted `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and 
 - The account screen enforces a 60-second resend cooldown and interprets Supabase HTTP 429 responses instead of encouraging repeated sends. The cooldown is a client-side guard; Supabase's server-side rate limit remains authoritative.
 - The service worker now returns a valid 503 `Response` if a navigation or resource fetch fails and no cached fallback exists, avoiding `Failed to convert value to 'Response'` errors.
 - A `beforeinstallprompt` console notice is separate from OTP: the custom PWA install card intentionally prevents the browser's native banner and calls `prompt()` when the user presses its Install button.
+
+
+## OTP and install-banner follow-up
+- The authentication screen now accepts exactly seven digits to match the code currently delivered by this project.
+- Both sign-in and registration pass `type: "email"` to `/auth/v1/verify`, matching Supabase email OTP verification guidance.
+- Expired/invalid OTP errors now suggest requesting a fresh code and entering all digits from the newest email.
+- The PWA component no longer cancels the browser install event. Browsers can show their native install UI; browsers without that event get manual install instructions instead.

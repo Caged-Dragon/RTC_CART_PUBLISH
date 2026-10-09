@@ -45,6 +45,9 @@ async function request(path: string, init: RequestInit = {}, accessToken?: strin
   if (!res.ok) {
     const detail = data?.message || data?.error_description || data?.msg || data?.error || (typeof data === 'string' ? data : '');
     const message = String(detail || `Supabase request failed (${res.status})`);
+    if (path === '/auth/v1/verify' && /token has expired or is invalid|invalid token|otp expired/i.test(message)) {
+      throw new Error('That verification code is invalid or expired. Request a fresh code and enter all seven digits from the newest email.');
+    }
     throw new Error(res.status === 429 && !/429|rate.?limit|after \d+ seconds?/i.test(message) ? `${message} (HTTP 429 rate limit)` : message);
   }
   return data;

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authDeleteOwnAccount, authGetUser, authProviderUrl, authRefresh, authResetPassword, authSendOtp, authUpdateUser, authVerifyOtp, clearSession, dbSelect, dbUpdate, getSession, SupabaseAuthUser, SupabaseSession } from '../lib/supabase';
 
 export interface UserProfile { id?: string; authUserId?: string; name: string; phone: string; email: string; city?: string; address?: string; district?: string; state?: string; pincode?: string; }
-interface AuthContextType { user: UserProfile | null; authUser: SupabaseAuthUser | null; session: SupabaseSession | null; isAuthenticated: boolean; loading: boolean; login: (name: string, phone: string, email?: string, password?: string) => Promise<void>; signup: (name: string, phone: string, email: string, password?: string) => Promise<void>; sendEmailOtp: (email: string, createUser?: boolean, metadata?: Record<string, any>) => Promise<void>; verifyEmailOtp: (email: string, token: string, isSignup?: boolean) => Promise<void>; updatePreferences: (preferences: Record<string, boolean>) => Promise<void>; deleteAccount: () => Promise<void>; loginWithProvider: (provider: 'google'|'apple'|'azure') => void; resetPassword: (email: string) => Promise<void>; logout: () => void; updateProfile: (details: Partial<UserProfile>) => Promise<void>; refreshProfile: () => Promise<void>; }
+interface AuthContextType { user: UserProfile | null; authUser: SupabaseAuthUser | null; session: SupabaseSession | null; isAuthenticated: boolean; loading: boolean; login: (name: string, phone: string, email?: string, password?: string) => Promise<void>; signup: (name: string, phone: string, email: string, password?: string) => Promise<void>; sendEmailOtp: (email: string, createUser?: boolean, metadata?: Record<string, any>) => Promise<void>; verifyEmailOtp: (email: string, token: string) => Promise<void>; updatePreferences: (preferences: Record<string, boolean>) => Promise<void>; deleteAccount: () => Promise<void>; loginWithProvider: (provider: 'google'|'apple'|'azure') => void; resetPassword: (email: string) => Promise<void>; logout: () => void; updateProfile: (details: Partial<UserProfile>) => Promise<void>; refreshProfile: () => Promise<void>; }
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function profileFromRow(row: any, authUser?: SupabaseAuthUser | null): UserProfile {
@@ -77,8 +77,10 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
   const sendEmailOtp = async (email: string, createUser = false, metadata: Record<string, any> = {}) => {
     await authSendOtp(email, createUser, metadata);
   };
-  const verifyEmailOtp = async (email: string, token: string, isSignup = false) => {
-    const fresh = await authVerifyOtp(email, token, isSignup ? 'signup' : 'email');
+  const verifyEmailOtp = async (email: string, token: string) => {
+    // The app sends both registration and sign-in codes via /auth/v1/otp.
+    // Supabase's email OTP verification flow uses type 'email' for both.
+    const fresh = await authVerifyOtp(email, token, 'email');
     setSession(fresh); setAuthUser(fresh.user);
     // Refresh once the new session is installed; avoid using a stale closure session.
     const rows = await dbSelect<any>('users', `select=*&auth_user_id=eq.${fresh.user.id}&limit=1`, fresh.access_token).catch(() => []);
