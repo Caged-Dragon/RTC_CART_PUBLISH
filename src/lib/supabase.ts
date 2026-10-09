@@ -71,6 +71,41 @@ export async function authGetUser(accessToken: string): Promise<SupabaseAuthUser
   return request('/auth/v1/user', { method: 'GET' }, accessToken);
 }
 
+
+export async function authSendOtp(email: string, createUser = false, metadata: Record<string, any> = {}) {
+  await request('/auth/v1/otp', {
+    method: 'POST',
+    body: JSON.stringify({ email: email.trim().toLowerCase(), create_user: createUser, data: metadata }),
+  });
+}
+
+export async function authVerifyOtp(email: string, token: string, type: 'email' | 'signup' = 'email'): Promise<SupabaseSession> {
+  const session = await request('/auth/v1/verify', {
+    method: 'POST',
+    body: JSON.stringify({ email: email.trim().toLowerCase(), token: token.trim(), type }),
+  });
+  if (!session?.access_token || !session?.user) throw new Error('The code was not accepted. Request a new code and try again.');
+  saveSession(session);
+  return session;
+}
+
+export async function authUpdateUser(accessToken: string, data: Record<string, any>) {
+  return request('/auth/v1/user', { method: 'PUT', body: JSON.stringify({ data }) }, accessToken);
+}
+
+export async function authDeleteOwnAccount(accessToken: string) {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/delete-account`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: true }),
+  });
+  const text = await response.text();
+  let data: any = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  if (!response.ok) throw new Error(data?.error || data?.message || `Account deletion failed (${response.status}).`);
+  return data;
+}
+
 export async function authPasswordSignIn(email: string, password: string): Promise<SupabaseSession> {
   const session = await request('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email, password }) });
   saveSession(session);
