@@ -65,7 +65,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
       { id: 'intro', label: 'Home' },
       { id: 'products', label: 'Shop' },
       { id: 'combos', label: 'Combos' },
-      { id: 'products', label: 'Best Sellers' },
       { id: 'about', label: 'About Us' },
       { id: 'safety', label: 'Safety' },
       { id: 'contact', label: 'Contact' },
@@ -163,7 +162,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
                       if (isCategory) setCategoriesOpen((v) => !v);
                       else if (isBest) {
                         handleNav('products');
-                        setShopIntent({ type: 'best-sellers' });
+                        setShopIntent({ type: 'all' } as any);
                       } else handleNav(item.id);
                     }}
                     aria-expanded={isCategory ? categoriesOpen : undefined}

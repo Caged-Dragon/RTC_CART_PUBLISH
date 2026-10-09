@@ -95,7 +95,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <strong className="text-amber-400 dark:text-amber-300 light:text-amber-900 font-semibold block mb-0.5">
                 Official Sivakasi Dispatch Policy:
               </strong>
-              Orders are dispatched against payment receipt only. Our Sivakasi team will verify product stock, compute exact transport lorry parcel charges for your city/location, and confirm your final invoice.
+              No online payments are accepted. Our Sivakasi team will verify product stock, calculate transport / lorry / parcel charges for your city, and send the final invoice. Payment instructions are confirmed offline by our team; dispatch begins only after payment is received and verified.
             </div>
           </div>
 

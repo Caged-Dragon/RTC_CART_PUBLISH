@@ -42,14 +42,7 @@ async function request(path: string, init: RequestInit = {}, accessToken?: strin
   const text = await res.text();
   let data: any = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-  if (!res.ok) {
-    const detail = data?.message || data?.error_description || data?.msg || data?.error || (typeof data === 'string' ? data : '');
-    const message = String(detail || `Supabase request failed (${res.status})`);
-    if (path === '/auth/v1/verify' && /token has expired or is invalid|invalid token|otp expired/i.test(message)) {
-      throw new Error('That verification code is invalid or expired. Request a fresh code and enter all seven digits from the newest email.');
-    }
-    throw new Error(res.status === 429 && !/429|rate.?limit|after \d+ seconds?/i.test(message) ? `${message} (HTTP 429 rate limit)` : message);
-  }
+  if (!res.ok) throw new Error(data?.message || data?.error_description || data?.error || `Supabase request failed (${res.status})`);
   return data;
 }
 
@@ -76,41 +69,6 @@ export async function rpc<T = any>(fn: string, body: any, accessToken?: string):
 
 export async function authGetUser(accessToken: string): Promise<SupabaseAuthUser> {
   return request('/auth/v1/user', { method: 'GET' }, accessToken);
-}
-
-
-export async function authSendOtp(email: string, createUser = false, metadata: Record<string, any> = {}) {
-  await request('/auth/v1/otp', {
-    method: 'POST',
-    body: JSON.stringify({ email: email.trim().toLowerCase(), create_user: createUser, data: metadata }),
-  });
-}
-
-export async function authVerifyOtp(email: string, token: string, type: 'email' | 'signup' = 'email'): Promise<SupabaseSession> {
-  const session = await request('/auth/v1/verify', {
-    method: 'POST',
-    body: JSON.stringify({ email: email.trim().toLowerCase(), token: token.trim(), type }),
-  });
-  if (!session?.access_token || !session?.user) throw new Error('The code was not accepted. Request a new code and try again.');
-  saveSession(session);
-  return session;
-}
-
-export async function authUpdateUser(accessToken: string, data: Record<string, any>) {
-  return request('/auth/v1/user', { method: 'PUT', body: JSON.stringify({ data }) }, accessToken);
-}
-
-export async function authDeleteOwnAccount(accessToken: string) {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/delete-account`, {
-    method: 'POST',
-    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ confirm: true }),
-  });
-  const text = await response.text();
-  let data: any = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-  if (!response.ok) throw new Error(data?.error || data?.message || `Account deletion failed (${response.status}).`);
-  return data;
 }
 
 export async function authPasswordSignIn(email: string, password: string): Promise<SupabaseSession> {

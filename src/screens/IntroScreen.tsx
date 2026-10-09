@@ -107,18 +107,6 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate }) => {
         </div>
       </section>
 
-      <section className="rt-section rt-best-section" aria-labelledby="best-heading">
-        <div className="rt-container">
-          <div className="rt-section-heading rt-dark-heading">
-            <div><span className="rt-kicker">Most loved</span><h2 id="best-heading">Best Sellers</h2></div>
-            <button className="rt-section-link light" onClick={() => { onNavigate('products'); setShopIntent({ type: 'best-sellers' }); }}>View All <ArrowRight /></button>
-          </div>
-          <div className="rt-product-grid home-grid">
-            {picksLoading && !bestSellers.length ? Array.from({ length: 6 }).map((_, index) => <div className="rt-skeleton rt-product-skeleton" key={index} />) : bestSellers.map((product, index) => { const pick = homepagePicks.find((item) => item.product.id === product.id); return <div className="rt-home-pick-wrap" key={product.id}>{pick && <div className="rt-home-pick-meta"><span>{pick.badgeText}</span><strong>{pick.customerLabel}</strong>{pick.ratingStars != null && pick.ratingCount > 0 ? <small>★ {pick.ratingStars.toFixed(1)} · {pick.ratingCount} reviews</small> : <small>{pick.customerReason}</small>}</div>}<ProductCard product={product} compact /></div>; })}
-          </div>
-        </div>
-      </section>
-
       <section className="rt-section rt-section-white" aria-labelledby="budget-heading">
         <div className="rt-container">
           <div className="rt-section-heading">
@@ -168,7 +156,7 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate }) => {
       <section className="rt-service-strip" aria-label="Service assurances">
         <div className="rt-container rt-service-grid">
           <div><PackageCheck /><strong>Delivery Across India*</strong><small>Subject to regulations</small></div>
-          <div><WalletCards /><strong>Multiple Payment Options</strong><small>UPI, Cards, Net Banking</small></div>
+          <div><WalletCards /><strong>No Online Payment</strong><small>Order first; team confirms invoice and payment offline</small></div>
           <div><ShieldCheck /><strong>Quality Products</strong><small>Trusted brands from Sivakasi</small></div>
           <div><MessageCircle /><strong>WhatsApp Support</strong><small>Quick assistance</small></div>
           <div><Box /><strong>Wide Range</strong><small>500+ varieties</small></div>

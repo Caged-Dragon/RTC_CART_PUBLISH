@@ -27,7 +27,7 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(event.request)
         .then(response => { const copy = response.clone(); caches.open(CACHE).then(c => c.put('/index.html', copy)).catch(() => {}); return response; })
-        .catch(() => caches.match('/index.html').then(cached => cached || new Response('You are offline. Please reconnect and try again.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })))
+        .catch(async () => (await caches.match('/index.html')) || new Response('You are offline. Please reconnect and try again.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }))
     );
     return;
   }
@@ -38,9 +38,9 @@ self.addEventListener('fetch', event => {
       caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
         if (response.ok) { const copy = response.clone(); caches.open(CACHE).then(c => c.put(event.request, copy)).catch(() => {}); }
         return response;
-      })).catch(() => caches.match(event.request).then(cached => cached || new Response('This resource is unavailable offline. Please reconnect and retry.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })))
+      }))
     );
     return;
   }
-  event.respondWith(fetch(event.request).catch(() => caches.match(event.request).then(cached => cached || new Response('You are offline. Please reconnect and try again.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }))));
+  event.respondWith(fetch(event.request).catch(async () => (await caches.match(event.request)) || new Response('', { status: 504, statusText: 'Offline' })));
 });
