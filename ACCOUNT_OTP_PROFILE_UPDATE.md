@@ -29,3 +29,10 @@ The function expects Supabase's hosted `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and 
 - Changing the login email is not wired into the UI yet because it needs a dedicated verified email-change flow.
 - Notification preferences are persisted to Supabase user metadata, but email sending code must check these preferences before sending optional marketing/order notification messages.
 - Social login buttons still depend on Google, Apple and Azure provider setup in Supabase Auth.
+
+
+## OTP reliability fixes (follow-up)
+- Sign-up OTP verification uses Supabase token type `signup`; existing-account email OTP uses `email`.
+- The account screen enforces a 60-second resend cooldown and interprets Supabase HTTP 429 responses instead of encouraging repeated sends. The cooldown is a client-side guard; Supabase's server-side rate limit remains authoritative.
+- The service worker now returns a valid 503 `Response` if a navigation or resource fetch fails and no cached fallback exists, avoiding `Failed to convert value to 'Response'` errors.
+- A `beforeinstallprompt` console notice is separate from OTP: the custom PWA install card intentionally prevents the browser's native banner and calls `prompt()` when the user presses its Install button.

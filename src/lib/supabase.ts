@@ -42,7 +42,11 @@ async function request(path: string, init: RequestInit = {}, accessToken?: strin
   const text = await res.text();
   let data: any = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-  if (!res.ok) throw new Error(data?.message || data?.error_description || data?.error || `Supabase request failed (${res.status})`);
+  if (!res.ok) {
+    const detail = data?.message || data?.error_description || data?.msg || data?.error || (typeof data === 'string' ? data : '');
+    const message = String(detail || `Supabase request failed (${res.status})`);
+    throw new Error(res.status === 429 && !/429|rate.?limit|after \d+ seconds?/i.test(message) ? `${message} (HTTP 429 rate limit)` : message);
+  }
   return data;
 }
 

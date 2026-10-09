@@ -24,6 +24,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
   const [pincode, setPincode] = useState('');
   const [otp, setOtp] = useState('');
   const [busy, setBusy] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [notice, setNotice] = useState<Notice>(null);
   const [editing, setEditing] = useState(false);
   const [deletePrompt, setDeletePrompt] = useState(false);
@@ -38,6 +39,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
     if (saved) setPreferences({ orderUpdates: saved.orderUpdates !== false, securityEmails: saved.securityEmails !== false, offers: saved.offers === true });
   }, [user?.authUserId, authUser?.id]);
 
+  useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const timer = window.setInterval(() => setResendSeconds(value => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [resendSeconds > 0]);
+
+  const handleOtpError = (error: unknown, fallback: string) => {
+    const message = error instanceof Error ? error.message : fallback;
+    const secondsMatch = message.match(/after\s+(\d+)\s+seconds?/i);
+    const rateLimited = /http 429|rate.?limit|too many requests|only request this after/i.test(message);
+    if (rateLimited) setResendSeconds(Math.max(5, Number(secondsMatch?.[1] || 60)));
+    setNotice({ kind: 'error', message: rateLimited
+      ? `Too many code requests. Please wait ${Math.max(5, Number(secondsMatch?.[1] || 60))} seconds before trying again. Do not keep tapping Send code.`
+      : message || fallback });
+  };
+
   const initials = useMemo(() => (user?.name || user?.email || 'U').trim().charAt(0).toUpperCase(), [user?.name, user?.email]);
   const setError = (error: unknown, fallback: string) => setNotice({ kind: 'error', message: error instanceof Error ? error.message : fallback });
 
@@ -51,9 +68,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
       } else {
         await login('', '', email);
       }
-      setStep('otp'); setOtp('');
-      setNotice({ kind: 'success', message: `A verification code has been sent to ${email.trim()}.` });
-    } catch (error) { setError(error, 'Unable to send a verification code.'); }
+      setStep('otp'); setOtp(''); setResendSeconds(60);
+      setNotice({ kind: 'success', message: `A verification code has been sent to ${email.trim()}. You can request another code in 60 seconds.` });
+    } catch (error) { handleOtpError(error, 'Unable to send a verification code.'); }
     finally { setBusy(false); }
   };
 
@@ -70,11 +87,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
   };
 
   const handleResendOtp = async () => {
+    if (busy || resendSeconds > 0) return;
     setBusy(true); setNotice(null);
     try {
       await sendEmailOtp(email, mode === 'register', mode === 'register' ? { full_name: name.trim(), phone: phone.trim() } : {});
-      setNotice({ kind: 'success', message: 'A new verification code has been sent.' }); setOtp('');
-    } catch (error) { setError(error, 'Unable to resend the code.'); }
+      setNotice({ kind: 'success', message: 'A new verification code has been sent. You can request another in 60 seconds.' }); setOtp(''); setResendSeconds(60);
+    } catch (error) { handleOtpError(error, 'Unable to resend the code.'); }
     finally { setBusy(false); }
   };
 
@@ -174,7 +192,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
             <div className="text-center"><div className="mx-auto mb-3 w-12 h-12 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center"><Mail className="w-6 h-6"/></div><h2 className="text-lg font-bold text-white dark:text-white light:text-stone-900">Check your email</h2><p className="text-sm text-stone-400 mt-1">Enter the six-digit code sent to <strong className="text-stone-200 dark:text-stone-200 light:text-stone-800">{email}</strong></p></div>
             <div><label className={labelClass}>Email verification code</label><input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} className={`${fieldClass} text-center tracking-[0.5em] text-2xl font-bold`} placeholder="000000" aria-label="Six digit email verification code" /></div>
             <button disabled={busy || otp.length !== 6} type="submit" className="w-full py-3 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 disabled:opacity-50 text-white font-bold">{busy ? 'Verifying…' : 'Verify code & continue'}</button>
-            <div className="flex flex-wrap justify-center gap-4 text-sm"><button type="button" disabled={busy} onClick={handleResendOtp} className="inline-flex items-center gap-1.5 text-amber-400 hover:text-amber-300 underline"><RefreshCw className="w-3.5 h-3.5"/>Resend code</button><button type="button" disabled={busy} onClick={() => {setStep('details');setOtp('');setNotice(null);}} className="text-stone-400 hover:text-white underline">Change email</button></div>
+            <div className="flex flex-wrap justify-center gap-4 text-sm"><button type="button" disabled={busy || resendSeconds > 0} onClick={handleResendOtp} className="inline-flex items-center gap-1.5 text-amber-400 hover:text-amber-300 underline disabled:opacity-50 disabled:cursor-not-allowed"><RefreshCw className="w-3.5 h-3.5"/>{resendSeconds > 0 ? `Resend in ${resendSeconds}s` : 'Resend code'}</button><button type="button" disabled={busy} onClick={() => {setStep('details');setOtp('');setNotice(null);}} className="text-stone-400 hover:text-white underline">Change email</button></div>
           </form>}
           {step === 'details' && <><div className="pt-4 border-t border-stone-800"><p className="text-xs text-stone-500 text-center mb-3">Or continue with a connected provider</p><div className="grid grid-cols-3 gap-2"><button type="button" onClick={() => loginWithProvider('google')} className="py-2.5 rounded-lg border border-stone-700 text-xs text-stone-200 hover:border-amber-500">Google</button><button type="button" onClick={() => loginWithProvider('apple')} className="py-2.5 rounded-lg border border-stone-700 text-xs text-stone-200 hover:border-amber-500">Apple</button><button type="button" onClick={() => loginWithProvider('azure')} className="py-2.5 rounded-lg border border-stone-700 text-xs text-stone-200 hover:border-amber-500">Microsoft</button></div></div><div className="text-center"><button type="button" onClick={handleGuestLogin} className="text-amber-500 hover:text-amber-400 font-semibold text-xs underline">Continue as guest</button></div></>}
         </div>

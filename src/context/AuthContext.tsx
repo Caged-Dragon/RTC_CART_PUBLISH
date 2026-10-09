@@ -78,7 +78,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     await authSendOtp(email, createUser, metadata);
   };
   const verifyEmailOtp = async (email: string, token: string, isSignup = false) => {
-    const fresh = await authVerifyOtp(email, token, 'email');
+    const fresh = await authVerifyOtp(email, token, isSignup ? 'signup' : 'email');
     setSession(fresh); setAuthUser(fresh.user);
     // Refresh once the new session is installed; avoid using a stale closure session.
     const rows = await dbSelect<any>('users', `select=*&auth_user_id=eq.${fresh.user.id}&limit=1`, fresh.access_token).catch(() => []);
