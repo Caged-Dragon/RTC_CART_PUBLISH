@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { BadgePercent, ArrowRight } from 'lucide-react';
-import { dbSelect } from '../lib/supabase';
+import { dbSelectSWR } from '../lib/supabase';
 
 export const LiveOffersSection: React.FC = () => {
   const [offers, setOffers] = useState<any[]>([]);
   useEffect(() => {
     // Existing Supabase offer query intentionally preserved.
-    dbSelect<any>('offers', 'select=*,offer_banners(*)&is_active=eq.true&order=display_order.asc,priority.desc')
-      .then(setOffers)
+    dbSelectSWR<any>('offers', 'select=*,offer_banners(*)&is_active=eq.true&order=display_order.asc,priority.desc', (rows) => setOffers(rows))
       .catch(() => setOffers([]));
   }, []);
   if (!offers.length) return null;

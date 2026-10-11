@@ -54,7 +54,7 @@ export const CustomerReviewsFeedback: React.FC<CustomerReviewsFeedbackProps> = (
   const { session, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    dbSelect<any>('reviews', 'select=*&order=created_at.desc').then(rows => setReviews(rows.map(r => ({
+    dbSelect<any>('reviews', 'select=*&order=created_at.desc&limit=60').then(rows => setReviews(rows.map(r => ({
       id:r.id, customerName:r.customer_name, city:r.city || '', rating:r.rating, date:new Date(r.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}), orderId:undefined, comment:r.comment_text || '', tags:r.experience_tags || [], helpfulCount:r.helpful_upvotes_count || 0, verifiedBuyer:!!r.is_verified_buyer, recommended:r.rating >= 4
     })))).catch(err => console.error('Reviews load failed', err));
   }, []);

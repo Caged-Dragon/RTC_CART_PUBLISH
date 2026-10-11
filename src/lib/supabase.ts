@@ -97,6 +97,64 @@ export function authProviderUrl(provider: 'google' | 'apple' | 'azure', redirect
   return `${SUPABASE_URL}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirectTo)}`;
 }
 
+// ---- Stale-while-revalidate reads of PUBLIC data (catalogue, offers, theme, company) ----------------
+// Returning visitors see the last copy instantly while fresh data loads in the background; identical
+// requests made at the same moment share one network call. Never used for signed-in/private data.
+const SWR_PREFIX = 'rt:swr:v1:';
+const SWR_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const SWR_MAX_BYTES = 400_000;
+const swrInflight = new Map<string, Promise<any[]>>();
+
+function swrRead<T>(key: string): { rows: T[]; at: number } | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    return Array.isArray(v?.rows) && typeof v.at === 'number' ? v : null;
+  } catch { return null; }
+}
+
+function swrWrite(key: string, rows: unknown[], serialized: string) {
+  if (serialized.length > SWR_MAX_BYTES) return;
+  try {
+    localStorage.setItem(key, JSON.stringify({ at: Date.now(), rows }));
+    if (Math.random() < 0.05) { // occasional tidy-up of old entries
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(SWR_PREFIX)) { const e = swrRead(k); if (!e || Date.now() - e.at > SWR_MAX_AGE_MS) localStorage.removeItem(k); }
+      }
+    }
+  } catch { /* storage full or unavailable: caching is optional */ }
+}
+
+/**
+ * Reads public rows. `apply` is called with the cached copy immediately (if any) and again with fresh rows
+ * only when they differ. `freshMs` skips the network entirely when the cached copy is that recent.
+ * Rejects only when the network fails and nothing was cached.
+ */
+export async function dbSelectSWR<T = any>(table: string, query: string, apply: (rows: T[]) => void, opts: { freshMs?: number } = {}): Promise<void> {
+  const key = `${SWR_PREFIX}${table}?${query}`;
+  const cached = swrRead<T>(key);
+  let applied = false;
+  if (cached && Date.now() - cached.at < SWR_MAX_AGE_MS) {
+    apply(cached.rows); applied = true;
+    if (opts.freshMs && Date.now() - cached.at < opts.freshMs) return;
+  }
+  try {
+    let pending = swrInflight.get(key) as Promise<T[]> | undefined;
+    if (!pending) {
+      pending = dbSelect<T>(table, query).finally(() => swrInflight.delete(key));
+      swrInflight.set(key, pending);
+    }
+    const rows = await pending;
+    const serialized = JSON.stringify(rows);
+    if (!cached || JSON.stringify(cached.rows) !== serialized) apply(rows);
+    swrWrite(key, rows, serialized);
+  } catch (error) {
+    if (!applied) throw error;
+  }
+}
+
 export function clearSession() { saveSession(null); }
 
 export function getStoredSupabaseConfig() { return { url: SUPABASE_URL, anonKey: SUPABASE_KEY }; }

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { dbSelect } from '../lib/supabase';
+import { dbSelectSWR } from '../lib/supabase';
 import { useProducts, type DbProduct } from './ProductsContext';
 
 export interface HomepagePick {
@@ -32,10 +32,7 @@ export const HomepagePicksProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!products.length) return;
     setIsLoading(true);
     try {
-      const rows = await dbSelect<any>(
-        'homepage_customer_picks',
-        'select=id,product_id,display_order,badge_text,customer_label,customer_reason,customer_score,rating_stars,rating_count&website_key=eq.cart&is_active=eq.true&order=display_order.asc,id.asc',
-      );
+      await dbSelectSWR<any>('homepage_customer_picks', 'select=id,product_id,display_order,badge_text,customer_label,customer_reason,customer_score,rating_stars,rating_count&website_key=eq.cart&is_active=eq.true&order=display_order.asc,id.asc', (rows) => {
       const byDbId = new Map(products.map((product) => [product.dbId, product]));
       const byCode = new Map(products.map((product) => [String(product.id), product]));
       setPicks(
@@ -58,6 +55,8 @@ export const HomepagePicksProvider: React.FC<{ children: React.ReactNode }> = ({
           })
           .filter(Boolean) as HomepagePick[],
       );
+      setIsLoading(false);
+      }, { freshMs: 15000 });
     } catch (error) {
       console.error('Homepage customer picks load failed', error);
       setPicks([]);

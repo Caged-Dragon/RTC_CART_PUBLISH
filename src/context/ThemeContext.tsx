@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { dbSelect } from '../lib/supabase';
-import { loadThemePage, applyThemeVars, applyComponentStyles } from '../themeDatabase';
+import { loadThemePageSWR, applyThemeVars, applyComponentStyles } from '../themeDatabase';
 
 type Theme = 'light' | 'dark';
 interface ThemeContextType { theme: Theme; toggleTheme: () => void; setTheme: (theme: Theme) => void; }
@@ -31,19 +30,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     let active = true;
     const load = async (page: string) => {
       const target = page || 'home';
-      const t = await loadThemePage('cart', target);
-      if (!active) return;
-      applyThemeVars(t);
-      // Same table, same website scope. This is read-only and page-local.
-      try {
-        const rows = await dbSelect<any>(
-          'theme_page_settings',
-          `select=component_tokens,custom_css&website_key=eq.cart&page_key=eq.${encodeURIComponent(target)}&is_active=eq.true&limit=1`,
-        );
-        if (active) applyComponentStyles({ ...t, ...(rows[0] || {}) });
-      } catch {
-        if (active) applyComponentStyles(t);
-      }
+      await loadThemePageSWR('cart', target, (t) => {
+        if (!active) return;
+        applyThemeVars(t);
+        applyComponentStyles(t); // the row already includes component tokens and custom CSS
+      });
     };
     load(document.documentElement.dataset.rtcPage || 'home');
     const handler = (event: Event) => load((event as CustomEvent<string>).detail || 'home');

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
-import { dbSelect } from '../lib/supabase';
+import { dbSelectSWR } from '../lib/supabase';
 import { useStore } from '../context/StoreContext';
 
 interface BannerRow {
@@ -37,8 +37,7 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     // Keep the existing Supabase integration/query untouched.
-    dbSelect<BannerRow>('offer_banners', 'select=*,offers!inner(title)&is_active=eq.true&order=display_order.asc')
-      .then(setBanners)
+    dbSelectSWR<BannerRow>('offer_banners', 'select=*,offers!inner(title)&is_active=eq.true&order=display_order.asc', (rows) => setBanners(rows))
       .catch(() => setBanners([]));
   }, []);
 

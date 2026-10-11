@@ -1,4 +1,4 @@
-import { dbSelect } from './lib/supabase';
+import { dbSelect, dbSelectSWR } from './lib/supabase';
 
 export type ThemePage = {
   website_key: string;
@@ -42,6 +42,17 @@ export async function loadThemePage(website: string, page: string): Promise<Them
     return row ? { ...FALLBACK, ...row, website_key: 'cart', page_key: page } : { ...FALLBACK, page_key: page };
   } catch {
     return { ...FALLBACK, page_key: page };
+  }
+}
+
+/** Same result as loadThemePage, but paints the saved copy immediately and re-applies only if the theme changed. */
+export async function loadThemePageSWR(website: string, page: string, apply: (theme: ThemePage) => void): Promise<void> {
+  if (website !== 'cart') { apply(FALLBACK); return; }
+  const shape = (rows: ThemePage[]): ThemePage => (rows[0] ? { ...FALLBACK, ...rows[0], website_key: 'cart', page_key: page } : { ...FALLBACK, page_key: page });
+  try {
+    await dbSelectSWR<ThemePage>('theme_page_settings', `select=*&website_key=eq.cart&page_key=eq.${encodeURIComponent(page)}&is_active=eq.true&limit=1`, (rows) => apply(shape(rows)));
+  } catch {
+    apply({ ...FALLBACK, page_key: page });
   }
 }
 

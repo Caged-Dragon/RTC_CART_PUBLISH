@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { dbSelect } from '../lib/supabase';
+import { dbSelectSWR } from '../lib/supabase';
 import { STORE_INFO as FALLBACK_INFO, StoreInfo } from '../data/products';
 
 export interface MerchantRules {
@@ -31,10 +31,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     let active = true;
-    const company = dbSelect<any>(
-      'company_profile',
-      'select=company_name,tagline,physical_address,city,state,postal_code,country,mobile,whatsapp_number,logo_url&is_active=eq.true&limit=1'
-    ).then(rows => {
+    const company = dbSelectSWR<any>('company_profile', 'select=company_name,tagline,physical_address,city,state,postal_code,country,mobile,whatsapp_number,logo_url&is_active=eq.true&limit=1', rows => {
       const r = rows[0];
       if (!r || !active) return;
       const wa = r.whatsapp_number || r.mobile;
@@ -52,10 +49,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
     }).catch(() => {});
 
-    const rules = dbSelect<any>(
-      'merchant_settings',
-      'select=minimum_order_value,is_season_booking_open,dispatch_policy_text,whatsapp_booking_number&limit=1'
-    ).then(rows => {
+    const rules = dbSelectSWR<any>('merchant_settings', 'select=minimum_order_value,is_season_booking_open,dispatch_policy_text,whatsapp_booking_number&limit=1', rows => {
       const r = rows[0];
       if (!r || !active) return;
       setMerchant({

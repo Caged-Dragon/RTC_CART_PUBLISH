@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { dbSelect } from '../lib/supabase';
+import { dbSelectSWR } from '../lib/supabase';
 import { useProducts, type DbProduct } from './ProductsContext';
 
 export interface ComboItem {
@@ -55,10 +55,7 @@ export const ComboPacksProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const refreshCombos = useCallback(async () => {
     setIsLoading(true);
     try {
-      const rows = await dbSelect<any>(
-        'combo_pack_catalogue',
-        'select=id,website_key,combo_code,name,slug,short_title,description,tagline,image_url,budget_tier,pricing_mode,manual_price,badge_text,is_active,is_featured,display_order,calculated_price,live_items_total,total_units,distinct_products,items&order=display_order.asc,id.asc',
-      );
+      await dbSelectSWR<any>('combo_pack_catalogue', 'select=id,website_key,combo_code,name,slug,short_title,description,tagline,image_url,budget_tier,pricing_mode,manual_price,badge_text,is_active,is_featured,display_order,calculated_price,live_items_total,total_units,distinct_products,items&order=display_order.asc,id.asc', (rows) => {
       const next = rows
         .map((row) => {
           const rawItems: any[] = Array.isArray(row.items) ? row.items : [];
@@ -109,6 +106,8 @@ export const ComboPacksProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         .filter((combo) => combo.items.length > 0);
 
       setCombos(next);
+      setIsLoading(false);
+      }, { freshMs: 15000 });
     } catch (error) {
       console.error('Combo catalogue load failed', error);
       setCombos([]);
