@@ -34,8 +34,8 @@ interface OrderData {
 
 export const TrackerScreen: React.FC = () => {
   const { storeInfo: STORE_INFO } = useStore();
-  const [searchId, setSearchId] = useState('');
-  const [trackingToken, setTrackingToken] = useState('');
+  const [searchId, setSearchId] = useState(() => new URLSearchParams(window.location.search).get('n') || '');
+  const [trackingToken, setTrackingToken] = useState(() => new URLSearchParams(window.location.search).get('t') || '');
   const { session } = useAuth();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(false);

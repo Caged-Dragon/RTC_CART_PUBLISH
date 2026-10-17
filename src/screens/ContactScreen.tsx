@@ -2,6 +2,7 @@ import React from 'react';
 import { Clock3, Mail, MapPin, MessageCircle, Phone, ShieldCheck } from 'lucide-react';
 import type { ScreenId } from '../components/Navbar';
 import { useStore } from '../context/StoreContext';
+import { SupportForm } from '../components/SupportForm';
 
 export const ContactScreen: React.FC<{ onNavigate: (screen: ScreenId) => void }> = ({ onNavigate }) => {
   const { storeInfo, merchant } = useStore();
@@ -20,6 +21,8 @@ export const ContactScreen: React.FC<{ onNavigate: (screen: ScreenId) => void }>
           <a className="rt-contact-card" href="mailto:sales@rtcrackers.com"><Mail /><span>Email</span><strong>sales@rtcrackers.com</strong><small>Send us your query</small></a>
           <div className="rt-contact-card"><MapPin /><span>Store / Dispatch</span><strong>{storeInfo.address}</strong><small>{storeInfo.city}, {storeInfo.state} {storeInfo.pincode}</small></div>
         </div>
+
+        <SupportForm />
 
         <div className="rt-contact-lower">
           <div className="rt-info-story"><div><span className="rt-kicker">Before you order</span><h2>Stock, freight and dispatch are confirmed with you.</h2></div><p>{merchant.dispatchPolicy}. For the fastest assistance, send your product names or order details on WhatsApp.</p></div>
