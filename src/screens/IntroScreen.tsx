@@ -29,8 +29,10 @@ import { HomeBanner } from '../components/HomeBanner';
 import { LiveOffersSection } from '../components/LiveOffersSection';
 import { useCart } from '../context/CartContext';
 import { ComboPacksSection } from '../components/ComboPacksSection';
+import type { Product } from '../data/products';
+import { getBestSellerProducts, getHomepageBestSellerCount } from '../utils/bestSellers';
 
-interface IntroScreenProps { onNavigate: (screen: ScreenId) => void; }
+interface IntroScreenProps { onNavigate: (screen: ScreenId) => void; onSelectProduct: (product: Product) => void; }
 
 const benefits = [
   { icon: BadgeCheck, title: 'Direct from Sivakasi', text: 'Factory-source pricing' },
@@ -51,13 +53,17 @@ const budgetTierLabels: Record<string, string> = {
 
 const money = (value: number) => `₹${Math.round(value).toLocaleString('en-IN')}`;
 
-export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate }) => {
+export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectProduct }) => {
   const { storeInfo } = useStore();
-  const { products } = useProducts();
+  const { products, isLoading: productsLoading } = useProducts();
   const { picks: homepagePicks, isLoading: picksLoading } = useHomepagePicks();
   const { categories, isLoading: categoriesLoading } = useCategories();
   const { combos, isLoading: combosLoading } = useComboPacks();
   const { totalBoxes, subtotal } = useCart();
+  const bestSellerProducts = useMemo(() => getBestSellerProducts(products, homepagePicks), [products, homepagePicks]);
+  const homeBestSellerCount = getHomepageBestSellerCount(bestSellerProducts.length);
+  const homeBestSellers = useMemo(() => bestSellerProducts.slice(0, homeBestSellerCount), [bestSellerProducts, homeBestSellerCount]);
+  const bestSellerPicksByProduct = useMemo(() => new Map(homepagePicks.map((pick) => [pick.product.dbId || String(pick.product.id), pick])), [homepagePicks]);
 
   const categoryCards = useMemo(() => {
     return categories
@@ -160,31 +166,47 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate }) => {
           <div className="rt-section-heading rt-best-data-heading">
             <div className="rt-best-title-wrap">
               <Flame aria-hidden="true" />
-              <div><h2 id="best-sellers-heading">Best Sellers</h2><p>Hand-picked products managed in the existing storefront catalogue.</p></div>
+              <div>
+                <h2 id="best-sellers-heading">Best Sellers</h2>
+                <p>Customer favourites and popular picks from the RT Crackers catalogue.</p>
+              </div>
             </div>
-            <button className="rt-section-link light" onClick={browseProducts}>Browse Catalogue <ArrowRight aria-hidden="true" /></button>
+            <button className="rt-section-link light" onClick={() => onNavigate('bestsellers')}>View All Best Sellers <ArrowRight aria-hidden="true" /></button>
           </div>
-          {picksLoading ? (
-            <div className="rt-home-pick-grid" aria-busy="true" aria-label="Loading featured products">
+          {(productsLoading || picksLoading) && !bestSellerProducts.length ? (
+            <div className="rt-product-grid rt-home-bestseller-grid" aria-busy="true" aria-label="Loading best sellers">
               {Array.from({ length: 4 }, (_, index) => <div className="rt-best-loading-card" key={index} />)}
             </div>
-          ) : homepagePicks.length ? (
-            <div className="rt-home-pick-grid">
-              {homepagePicks.slice(0, 4).map((pick) => (
-                <div className="rt-home-pick-wrap" key={pick.id}>
-                  <div className="rt-home-pick-meta">
-                    <span>{pick.badgeText}</span>
-                    <strong>{pick.customerLabel}</strong>
-                    <small>{pick.customerReason}</small>
-                  </div>
-                  <ProductCard product={pick.product} compact />
-                </div>
-              ))}
-            </div>
+          ) : homeBestSellers.length ? (
+            <>
+              <div className="rt-home-bestseller-note">
+                <Sparkles aria-hidden="true" />
+                <span>Featuring {Math.round((homeBestSellers.length / bestSellerProducts.length) * 100)}% of our best-seller collection on the home page.</span>
+                <button onClick={() => onNavigate('bestsellers')}>Explore all {bestSellerProducts.length} <ArrowRight aria-hidden="true" /></button>
+              </div>
+              <div className="rt-product-grid rt-home-bestseller-grid">
+                {homeBestSellers.map((product) => {
+                  const pick = bestSellerPicksByProduct.get(product.dbId || String(product.id));
+                  return (
+                    <div className="rt-home-bestseller-card-wrap" key={product.dbId || product.id}>
+                      <div className="rt-home-bestseller-card-meta">
+                        <span>{pick?.badgeText || 'Customer Favourite'}</span>
+                        <small>{pick?.customerLabel || (product.popular ? 'Popular pick' : 'Best seller')}</small>
+                      </div>
+                      <ProductCard product={product} compact onViewDetails={() => onSelectProduct(product)} />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="rt-home-bestseller-footer">
+                <span>Looking for something specific? The full best-seller page includes search, category filters, and price sorting.</span>
+                <button onClick={() => onNavigate('bestsellers')}>See all best sellers <ArrowRight aria-hidden="true" /></button>
+              </div>
+            </>
           ) : (
             <div className="rt-best-empty" role="status">
-              <div><strong>No homepage product picks are published yet.</strong><p>Activate curated picks in the existing homepage_customer_picks table to show live product cards here.</p></div>
-              <button onClick={browseProducts}>Browse Catalogue <ArrowRight aria-hidden="true" /></button>
+              <div><strong>Best sellers are being prepared.</strong><p>Popular products will appear here as the live catalogue publishes best-seller flags or curated customer picks.</p></div>
+              <button onClick={() => onNavigate('bestsellers')}>Open Best Sellers <ArrowRight aria-hidden="true" /></button>
             </div>
           )}
         </div>

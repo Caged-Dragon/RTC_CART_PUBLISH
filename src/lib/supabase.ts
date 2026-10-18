@@ -12,6 +12,7 @@ export type SupabaseAuthUser = {
   email?: string;
   phone?: string;
   user_metadata?: Record<string, any>;
+  identities?: Array<{ id: string; provider?: string }> | null;
 };
 
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || 'https://ypmiinmkyvzdpakbkers.supabase.co').replace(/\/$/, '');
@@ -33,16 +34,57 @@ export function saveSession(session: SupabaseSession | null) {
 }
 
 async function request(path: string, init: RequestInit = {}, accessToken?: string) {
+  if (!SUPABASE_URL || !SUPABASE_KEY || /^your_supabase_publishable_key$/i.test(SUPABASE_KEY)) {
+    throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY, then rebuild the app.');
+  }
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new Error('You appear to be offline. Reconnect to the internet and try again.');
+  }
+
   const headers = new Headers(init.headers || {});
   headers.set('apikey', SUPABASE_KEY);
   headers.set('Content-Type', 'application/json');
-  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
-  else headers.set('Authorization', `Bearer ${SUPABASE_KEY}`);
-  const res = await fetch(`${SUPABASE_URL}${path}`, { ...init, headers });
+
+  // New Supabase publishable keys are opaque keys, not JWTs. Send them via
+  // `apikey` only; Authorization is reserved for a user's access token. Keep
+  // compatibility with legacy anon keys, which are JWTs beginning with `eyJ`.
+  if (accessToken) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
+  } else if (SUPABASE_KEY.startsWith('eyJ')) {
+    headers.set('Authorization', `Bearer ${SUPABASE_KEY}`);
+  } else {
+    headers.delete('Authorization');
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${SUPABASE_URL}${path}`, { ...init, headers });
+  } catch {
+    throw new Error('Could not reach Supabase. Check your internet connection and try again.');
+  }
+
   const text = await res.text();
   let data: any = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
-  if (!res.ok) throw new Error(data?.message || data?.error_description || data?.error || `Supabase request failed (${res.status})`);
+
+  if (!res.ok) {
+    const code = String(data?.code || data?.error_code || '').toLowerCase();
+    const message = String(data?.message || data?.msg || data?.error_description || data?.error || '');
+    if (path.startsWith('/auth/v1/token?grant_type=password') && res.status === 400 &&
+        (code === 'invalid_credentials' || /invalid login credentials/i.test(message))) {
+      throw new Error('Incorrect email or password. Check your details, or use “Forgot password?” to reset your password.');
+    }
+    if (path.startsWith('/auth/v1/token?grant_type=password') && /email not confirmed/i.test(message)) {
+      throw new Error('Please verify your email address before signing in.');
+    }
+    if (res.status === 429) {
+      throw new Error('Too many attempts. Please wait a moment and try again.');
+    }
+    if (res.status === 503 || res.status === 504) {
+      throw new Error('The service is temporarily unavailable. Check your connection and try again.');
+    }
+    throw new Error(message || `Supabase request failed (${res.status}).`);
+  }
   return data;
 }
 

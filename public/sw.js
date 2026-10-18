@@ -1,4 +1,4 @@
-const CACHE = 'rt-crackers-cart-v2';
+const CACHE = 'rt-crackers-cart-v4';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/rt-icon-192.png', '/rt-icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -23,11 +23,27 @@ self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;   // never cache Supabase / API traffic
 
-  if (event.request.mode === 'navigate') {
+  const acceptsHtml = (event.request.headers.get('accept') || '').includes('text/html');
+  if (event.request.mode === 'navigate' || (url.pathname === '/login' && acceptsHtml)) {
     event.respondWith(
       fetch(event.request)
-        .then(response => { const copy = response.clone(); caches.open(CACHE).then(c => c.put('/index.html', copy)).catch(() => {}); return response; })
-        .catch(async () => (await caches.match('/index.html')) || new Response('You are offline. Please reconnect and try again.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }))
+        .then(response => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then(c => c.put('/index.html', copy)).catch(() => {});
+          }
+          return response;
+        })
+        .catch(async () => {
+          // A deep link such as /login must still boot the SPA while offline.
+          const cachedPage = await caches.match(event.request)
+            || await caches.match('/index.html')
+            || await caches.match('/');
+          return cachedPage || new Response(
+            'You are offline. Reconnect to the internet and try again.',
+            { status: 503, statusText: 'Offline', headers: { 'Content-Type': 'text/plain; charset=utf-8' } }
+          );
+        })
     );
     return;
   }
@@ -42,5 +58,5 @@ self.addEventListener('fetch', event => {
     );
     return;
   }
-  event.respondWith(fetch(event.request).catch(async () => (await caches.match(event.request)) || new Response('', { status: 504, statusText: 'Offline' })));
+  event.respondWith(fetch(event.request).catch(async () => (await caches.match(event.request)) || new Response('You are offline. Reconnect to load this resource.', { status: 503, statusText: 'Offline', headers: { 'Content-Type': 'text/plain; charset=utf-8' } })));
 });

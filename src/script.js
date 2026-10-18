@@ -4,7 +4,7 @@
 
   function loadCompanyBrand() {
     fetch(SUPABASE_URL + '/rest/v1/company_profile?select=company_name,logo_url&is_active=eq.true&order=updated_at.desc&limit=1', {
-      headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY }
+      headers: { apikey: SUPABASE_KEY }
     }).then(function (res) { return res.ok ? res.json() : []; })
       .then(function (rows) {
         var company = rows && rows[0]; if (!company) return;

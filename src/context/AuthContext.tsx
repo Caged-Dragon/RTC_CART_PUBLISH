@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authGetUser, authPasswordSignIn, authProviderUrl, authRefresh, authResetPassword, authSignUp, clearSession, dbSelect, dbUpdate, getSession, SupabaseAuthUser, SupabaseSession } from '../lib/supabase';
 
 export interface UserProfile { id?: string; authUserId?: string; name: string; phone: string; email: string; city?: string; address?: string; district?: string; state?: string; pincode?: string; }
-interface AuthContextType { user: UserProfile | null; authUser: SupabaseAuthUser | null; session: SupabaseSession | null; isAuthenticated: boolean; loading: boolean; login: (name: string, phone: string, email?: string, password?: string) => Promise<void>; signup: (name: string, phone: string, email: string, password: string) => Promise<void>; loginWithProvider: (provider: 'google'|'apple'|'azure') => void; resetPassword: (email: string) => Promise<void>; logout: () => void; updateProfile: (details: Partial<UserProfile>) => Promise<void>; refreshProfile: () => Promise<void>; }
+interface AuthContextType { user: UserProfile | null; authUser: SupabaseAuthUser | null; session: SupabaseSession | null; isAuthenticated: boolean; loading: boolean; login: (name: string, phone: string, email?: string, password?: string) => Promise<void>; signup: (name: string, phone: string, email: string, password: string) => Promise<'signed-in' | 'confirmation-required'>; loginWithProvider: (provider: 'google'|'apple'|'azure') => void; resetPassword: (email: string) => Promise<void>; logout: () => void; updateProfile: (details: Partial<UserProfile>) => Promise<void>; refreshProfile: () => Promise<void>; }
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function profileFromRow(row: any, authUser?: SupabaseAuthUser | null): UserProfile {
@@ -15,12 +15,18 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshProfile = async () => {
-    if (!session?.user?.id) { setUser(null); return; }
+  const refreshProfile = async (sessionOverride?: SupabaseSession | null) => {
+    const activeSession = sessionOverride === undefined ? session : sessionOverride;
+    if (!activeSession?.user?.id) { setUser(null); return; }
     try {
-      const rows = await dbSelect<any>('users', `select=*&auth_user_id=eq.${session.user.id}&limit=1`, session.access_token);
-      if (rows[0]) setUser(profileFromRow(rows[0], session.user));
-    } catch (e) { console.error('Profile load failed', e); }
+      const rows = await dbSelect<any>('users', `select=*&auth_user_id=eq.${activeSession.user.id}&limit=1`, activeSession.access_token);
+      // Authentication should still be reflected in the UI if a profile row has
+      // not been created yet or row-level security temporarily blocks the read.
+      setUser(rows[0] ? profileFromRow(rows[0], activeSession.user) : profileFromRow({}, activeSession.user));
+    } catch (e) {
+      console.error('Profile load failed', e);
+      setUser(profileFromRow({}, activeSession.user));
+    }
   };
 
   useEffect(() => {
@@ -66,12 +72,23 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     if (!email || !password) throw new Error('Email and password are required for customer sign in.');
     const s = await authPasswordSignIn(email.trim(), password);
     setSession(s); setAuthUser(s.user);
-    await refreshProfile();
+    await refreshProfile(s);
   };
-  const signup = async (name: string, phone: string, email: string, password: string) => {
+  const signup = async (name: string, phone: string, email: string, password: string): Promise<'signed-in' | 'confirmation-required'> => {
     const data = await authSignUp(email.trim(), password, { full_name: name.trim(), phone: phone.trim() });
-    if (data.session) { setSession(data.session); setAuthUser(data.session.user); }
-    else throw new Error('Account created. Please verify your email, then sign in.');
+    if (!data.user) {
+      throw new Error('We could not confirm the account-creation response. Please try again, or sign in if you already have an account.');
+    }
+    if (data.session) {
+      setSession(data.session);
+      setAuthUser(data.session.user);
+      await refreshProfile(data.session);
+      return 'signed-in';
+    }
+    // With Supabase email confirmation enabled, successful signup deliberately
+    // returns a user without a session. Treat it as a pending confirmation, not
+    // as an exception; the screen then tells the customer how to continue.
+    return 'confirmation-required';
   };
   const loginWithProvider = (provider: 'google'|'apple'|'azure') => { window.location.href = authProviderUrl(provider); };
   const resetPassword = (email: string) => authResetPassword(email.trim());

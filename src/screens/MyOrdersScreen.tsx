@@ -17,6 +17,7 @@ import { useCart, PlacedOrder } from '../context/CartContext';
 import { useStore } from '../context/StoreContext';
 import { ScreenId } from '../components/Navbar';
 import { CustomerReviewsFeedback } from '../components/CustomerReviewsFeedback';
+import { useAuth } from '../context/AuthContext';
 
 interface MyOrdersScreenProps {
   onNavigate: (screen: ScreenId) => void;
@@ -30,6 +31,7 @@ export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
   onSelectTrackingId,
 }) => {
   const { storeInfo: STORE_INFO } = useStore();
+  const { isAuthenticated } = useAuth();
   const { ordersHistory, reorder } = useCart();
   const [activeTab, setActiveTab] = useState<'orders' | 'reviews'>('orders');
   const [selectedOrderForReview, setSelectedOrderForReview] = useState<string>('');
@@ -110,13 +112,27 @@ export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
           {ordersHistory.length === 0 ? (
             <div className="py-16 text-center rounded-3xl bg-stone-900/40 dark:bg-stone-900/40 light:bg-white border border-stone-800 dark:border-stone-800 light:border-stone-200 p-8 space-y-3">
               <Package className="w-10 h-10 text-stone-600 mx-auto" />
-              <p className="text-stone-400">You don't have any past orders yet.</p>
-              <button
-                onClick={() => onNavigate('products')}
-                className="px-5 py-2.5 bg-amber-600 text-white text-xs font-bold rounded-xl cursor-pointer"
-              >
-                Start Browsing 127 Products
-              </button>
+              <p className="text-stone-400">
+                {isAuthenticated
+                  ? "You don't have any past orders yet. Your orders will appear here after checkout."
+                  : 'Sign in to view orders linked to your RT Crackers customer account.'}
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <button
+                  onClick={() => onNavigate(isAuthenticated ? 'products' : 'auth')}
+                  className="px-5 py-2.5 bg-amber-600 text-white text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  {isAuthenticated ? 'Start Browsing 127 Products' : 'Sign In / Create Account'}
+                </button>
+                {!isAuthenticated && (
+                  <button
+                    onClick={() => onNavigate('tracker')}
+                    className="px-5 py-2.5 border border-stone-600 text-stone-200 light:text-stone-700 text-xs font-bold rounded-xl cursor-pointer"
+                  >
+                    Track an Order
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <div className="space-y-4">

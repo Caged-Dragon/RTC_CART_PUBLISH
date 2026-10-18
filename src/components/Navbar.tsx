@@ -27,6 +27,7 @@ import logoImage from '../assets/logo.jpeg';
 export type ScreenId =
   | 'intro'
   | 'products'
+  | 'bestsellers'
   | 'table'
   | 'cart'
   | 'myorders'
@@ -66,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
       { id: 'products', label: 'Shop' },
       { id: 'products', label: 'Categories' },
       { id: 'combos', label: 'Combos' },
-      { id: 'intro', label: 'Best Sellers' },
+      { id: 'bestsellers', label: 'Best Sellers' },
       { id: 'about', label: 'About Us' },
       { id: 'safety', label: 'Safety' },
       { id: 'contact', label: 'Contact' },
@@ -96,10 +97,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
     setShopIntent({ type: 'category', value: categoryName });
   };
 
-  const showBestSellers = () => {
-    handleNav('intro');
-    window.setTimeout(() => document.getElementById('best-sellers')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-  };
+  const showBestSellers = () => handleNav('bestsellers');
 
 
   return (
@@ -142,6 +140,16 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
               <UserRound />
               <span><strong>{isAuthenticated ? (user?.name?.split(' ')[0] || 'Account') : 'Login'}</strong><small>My Account</small></span>
             </button>
+            <button
+              className={`rt-my-orders-btn ${currentScreen === 'myorders' ? 'active' : ''}`}
+              onClick={() => handleNav('myorders')}
+              aria-label="Open My Orders"
+              aria-current={currentScreen === 'myorders' ? 'page' : undefined}
+              title="View your order history"
+            >
+              <PackageSearch aria-hidden="true" />
+              <span className="rt-my-orders-label">My Orders</span>
+            </button>
             <button className="rt-cart-btn" onClick={() => handleNav('cart')} aria-label={`Open cart, ${totalBoxes} items`}>
               <ShoppingCart />
               {totalBoxes > 0 && <b>{totalBoxes}</b>}
@@ -160,7 +168,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
             {primaryNav.map((item) => {
               const isCategory = item.label === 'Categories';
               const isBest = item.label === 'Best Sellers';
-              const active = isCategory ? categoriesOpen : (isBest ? false : currentScreen === item.id);
+              const active = isCategory ? categoriesOpen : currentScreen === item.id;
               return (
                 <div className="rt-nav-item-wrap" key={item.label}>
                   <button

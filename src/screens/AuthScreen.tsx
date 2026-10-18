@@ -19,30 +19,55 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
   const [city, setCity] = useState('');
   const [password, setPassword] = useState('');
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
+  const [noticeType, setNoticeType] = useState<'success' | 'error' | 'info'>('info');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setSuccessNotice(null);
     try {
       if (mode === 'signin') {
         await login(name, phone, email, password);
+        setNoticeType('success');
         setSuccessNotice('Signed in successfully!');
       } else {
-        await signup(name, phone, email, password);
+        const signupResult = await signup(name, phone, email, password);
         updateCustomerDetails({ name, phone, email, city: city || 'Chennai' });
-        setSuccessNotice('Customer account created successfully!');
+        if (signupResult === 'confirmation-required') {
+          setNoticeType('info');
+          setSuccessNotice('If this email is being registered for the first time, check your inbox (and spam folder) for a verification link. Confirm your email before signing in. If you already have an account, use Sign In or Forgot password.');
+          setMode('signin');
+        } else {
+          setNoticeType('success');
+          setSuccessNotice('Customer account created and signed in successfully.');
+        }
       }
-    } catch (err: any) { setSuccessNotice(err.message || 'Unable to continue.'); }
+    } catch (err: any) {
+      setNoticeType('error');
+      setSuccessNotice(err?.message || 'Unable to continue.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleGuestLogin = () => {
+    setNoticeType('info');
     setSuccessNotice('Guest checkout is ready. You can continue without creating an account.');
     onNavigate('cart');
   };
 
   const handleForgotPassword = async () => {
-    if (!email.trim()) { setSuccessNotice('Enter your email address first.'); return; }
-    try { await resetPassword(email); setSuccessNotice('Password reset instructions have been sent to your email.'); }
-    catch (err: any) { setSuccessNotice(err.message || 'Unable to send reset instructions.'); }
+    if (!email.trim()) { setNoticeType('error'); setSuccessNotice('Enter your email address first.'); return; }
+    try {
+      await resetPassword(email);
+      setNoticeType('success');
+      setSuccessNotice('Password reset instructions have been sent to your email.');
+    } catch (err: any) {
+      setNoticeType('error');
+      setSuccessNotice(err?.message || 'Unable to send reset instructions.');
+    }
   };
 
   return (
@@ -68,8 +93,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
       <div className="bg-stone-900/90 dark:bg-stone-900/90 light:bg-white rounded-2xl border border-stone-800 dark:border-stone-800 light:border-stone-200 p-6 sm:p-8 shadow-2xl space-y-6">
         
         {successNotice && (
-          <div className="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-xs text-emerald-300 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className={`p-3.5 rounded-xl border text-xs flex items-center gap-2 ${noticeType === 'error' ? 'bg-red-950/40 border-red-800/60 text-red-300' : noticeType === 'success' ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300' : 'bg-stone-800/70 border-stone-700 text-stone-200'}`} role={noticeType === 'error' ? 'alert' : 'status'} aria-live={noticeType === 'error' ? 'assertive' : 'polite'}>
+            <CheckCircle2 className={`w-4 h-4 shrink-0 ${noticeType === 'error' ? 'text-red-400' : noticeType === 'success' ? 'text-emerald-400' : 'text-stone-400'}`} />
             <span>{successNotice}</span>
           </div>
         )}
@@ -117,6 +142,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
               <button
                 onClick={() => {
                   logout();
+                  setNoticeType('success');
                   setSuccessNotice('Signed out successfully.');
                 }}
                 className="px-4 py-2 rounded-xl bg-red-950/60 hover:bg-red-900/60 text-red-400 text-xs font-bold border border-red-800/60 transition-colors flex items-center gap-1.5 cursor-pointer"
@@ -248,9 +274,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
 
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-red-950/40 transition-all cursor-pointer mt-2"
+                disabled={isSubmitting}
+                aria-busy={isSubmitting}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 disabled:opacity-60 disabled:cursor-wait text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-red-950/40 transition-all cursor-pointer mt-2"
               >
-                {mode === 'signin' ? 'Sign In Now' : 'Create My Account'}
+                {isSubmitting ? 'Please wait…' : mode === 'signin' ? 'Sign In Now' : 'Create My Account'}
               </button>
 
             </form>

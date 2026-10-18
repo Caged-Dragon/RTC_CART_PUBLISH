@@ -54,3 +54,7 @@ Supported automatic flows in this codebase:
 - Order confirmation immediately after a successful `create_order` RPC.
 - Customer quotation emails from the Email Quotation screen.
 - An `order_status` mail action is included in the server function for order-lifecycle integrations.
+
+## Best Sellers storefront page
+
+The customer-facing Best Sellers route is `/best-sellers`. The home page features approximately 55% of the same curated/catalogue-marked best-seller collection; the dedicated page exposes search, category filtering, and sorting. See `BEST_SELLERS_HANDOFF.md` for behaviour and verification notes.

@@ -37,16 +37,18 @@ import { CagedDragonAd } from './components/CagedDragonAd';
 import { ComboPacksSection } from './components/ComboPacksSection';
 import { ProductDetailScreen } from './screens/ProductDetailScreen';
 import { useProducts } from './context/ProductsContext';
+import { BestSellersScreen } from './screens/BestSellersScreen';
+import type { Product } from './data/products';
 
 
 const SCREEN_PATHS: Record<ScreenId, string> = {
-  intro: '/', products: '/products', table: '/price-list', cart: '/cart', myorders: '/my-orders', tracker: '/track-order',
+  intro: '/', products: '/products', bestsellers: '/best-sellers', table: '/price-list', cart: '/cart', myorders: '/my-orders', tracker: '/track-order',
   whatsapp: '/whatsapp-order', mail: '/email-bill', auth: '/login', combos: '/combos', 'gift-boxes': '/gift-boxes', transport: '/transport',
   safety: '/safety', reviews: '/reviews', about: '/about', contact: '/contact',
 };
 const SCREEN_TITLES: Record<ScreenId, string> = {
   intro: 'RT Crackers (Makka & Wheat) – Factory-Direct Sivakasi Crackers 2026',
-  products: 'All Crackers with Photos & Rates | RT Crackers', table: '2026 Price List | RT Crackers', cart: 'Your Cart | RT Crackers',
+  products: 'All Crackers with Photos & Rates | RT Crackers', bestsellers: 'Best Sellers | RT Crackers – Customer Favourites', table: '2026 Price List | RT Crackers', cart: 'Your Cart | RT Crackers',
   myorders: 'My Orders | RT Crackers', tracker: 'Track Your Order | RT Crackers', whatsapp: 'Order on WhatsApp | RT Crackers',
   mail: 'Email Your Bill | RT Crackers', auth: 'Sign In | RT Crackers', combos: 'Combo Packs | RT Crackers', 'gift-boxes': 'Gift Boxes | RT Crackers',
   transport: 'Transport & Freight | RT Crackers', safety: 'Cracker Safety Guide | RT Crackers', reviews: 'Customer Reviews | RT Crackers', about: 'About RT Crackers | Sivakasi Factory Direct', contact: 'Contact RT Crackers | WhatsApp & Support',
@@ -68,6 +70,11 @@ function StorefrontApp() {
     const match = window.location.pathname.match(/^\/product\/(\d+)$/);
     return match ? Number(match[1]) : null;
   });
+  const [selectedProductOrigin, setSelectedProductOrigin] = useState<ScreenId>(() =>
+    window.history.state?.productOrigin === 'bestsellers' || window.history.state?.productOrigin === 'intro'
+      ? window.history.state.productOrigin
+      : 'products'
+  );
   // Navigation Screen State (can be customer screens or 'seller')
   const [currentScreen, setScreenRaw] = useState<ScreenId>(() => screenFromPath(window.location.pathname));
 
@@ -85,15 +92,56 @@ function StorefrontApp() {
       const path = window.location.pathname;
       const match = path.match(/^\/product\/(\d+)$/);
       setSelectedProductId(match ? Number(match[1]) : null);
+      const origin = window.history.state?.productOrigin;
+      setSelectedProductOrigin(origin === 'bestsellers' || origin === 'intro' ? origin : 'products');
       setScreenRaw(screenFromPath(path));
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
-  useEffect(() => { document.title = selectedProductId ? 'Product Details | RT Crackers' : SCREEN_TITLES[currentScreen]; }, [currentScreen, selectedProductId]);
+  useEffect(() => {
+    const product = selectedProductId ? products.find((item) => item.id === selectedProductId) : undefined;
+    const title = product ? `${product.name} | RT Crackers` : selectedProductId ? 'Product Details | RT Crackers' : SCREEN_TITLES[currentScreen];
+    const descriptions: Record<ScreenId, string> = {
+      intro: 'Explore factory-direct crackers from Sivakasi, customer favourites, gift boxes, combo packs and the latest RT Crackers catalogue.',
+      products: 'Browse the RT Crackers full product catalogue with live rates, categories, product details and quick add-to-cart ordering.',
+      bestsellers: 'Shop RT Crackers best sellers and customer favourites. Search products, filter by category, compare prices and add favourites to your cart.',
+      table: 'View the RT Crackers product price list and current catalogue rates.',
+      cart: 'Review your RT Crackers cart, quantities and order total before checkout.',
+      myorders: 'View your RT Crackers orders and order details.', tracker: 'Track an RT Crackers order and review dispatch information.',
+      whatsapp: 'Contact RT Crackers and prepare your order through WhatsApp.', mail: 'Prepare and share your RT Crackers order bill by email.',
+      auth: 'Sign in to your RT Crackers account to manage your orders and profile.', combos: 'Explore RT Crackers combo packs and curated celebration bundles.',
+      'gift-boxes': 'Browse RT Crackers gift boxes for family celebrations and festive occasions.', transport: 'Read RT Crackers delivery, transport and freight information.',
+      safety: 'Read important fireworks handling, supervision and safety guidance before use.', reviews: 'Read and submit customer feedback for RT Crackers.',
+      about: 'Learn about RT Crackers and our Sivakasi factory-direct catalogue.', contact: 'Contact RT Crackers for order assistance, product questions and customer support.',
+    };
+    const description = product
+      ? `${product.name} from RT Crackers. View catalogue pricing, pack details and availability, then add it to your cart.`
+      : descriptions[currentScreen];
+    const canonicalUrl = new URL(product ? `/product/${product.id}` : SCREEN_PATHS[currentScreen], window.location.origin).href;
+    document.title = title;
+    const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (canonical) canonical.href = canonicalUrl;
+    const descriptionTag = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    if (descriptionTag) descriptionTag.content = description;
+    const ogTitle = document.querySelector<HTMLMetaElement>('meta[property="og:title"]');
+    if (ogTitle) ogTitle.content = title;
+    const ogDescription = document.querySelector<HTMLMetaElement>('meta[property="og:description"]');
+    if (ogDescription) ogDescription.content = description;
+    const ogUrl = document.querySelector<HTMLMetaElement>('meta[property="og:url"]');
+    if (ogUrl) ogUrl.content = canonicalUrl;
+  }, [currentScreen, selectedProductId, products]);
   useEffect(() => {
     const themePage = currentScreen === 'intro' || currentScreen === 'about' || currentScreen === 'contact' ? 'home' : currentScreen === 'myorders' ? 'orders' : currentScreen === 'mail' ? 'mailing' : currentScreen === 'combos' ? 'gift-boxes' : currentScreen; window.dispatchEvent(new CustomEvent('rt-theme-page', { detail: themePage }));
   }, [currentScreen]);
+
+  const openProductDetails = (product: Product, origin: ScreenId) => {
+    setSelectedProductOrigin(origin);
+    setSelectedProductId(product.id);
+    setScreenRaw('products');
+    window.history.pushState({ screen: 'products', productOrigin: origin, productId: product.id }, '', `/product/${product.id}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Modals
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
@@ -116,7 +164,14 @@ function StorefrontApp() {
         <Suspense fallback={<div className="py-24 text-center text-xs text-stone-500" role="status" aria-live="polite">Loading…</div>}>
         {/* CUSTOMER STOREFRONT SCREENS */}
         {currentScreen === 'intro' && (
-          <IntroScreen onNavigate={setCurrentScreen} />
+          <IntroScreen onNavigate={setCurrentScreen} onSelectProduct={(product) => openProductDetails(product, 'intro')} />
+        )}
+
+        {currentScreen === 'bestsellers' && (
+          <BestSellersScreen
+            onNavigate={setCurrentScreen}
+            onSelectProduct={(product) => openProductDetails(product, 'bestsellers')}
+          />
         )}
 
         {currentScreen === 'products' && (
@@ -127,10 +182,10 @@ function StorefrontApp() {
               <ProductDetailScreen
                 product={product}
                 related={related}
-                onBack={() => setCurrentScreen('products')}
+                onBack={() => setCurrentScreen(selectedProductOrigin)}
                 onSelectRelated={(item) => {
                   setSelectedProductId(item.id);
-                  window.history.pushState({ productId: item.id }, '', `/product/${item.id}`);
+                  window.history.pushState({ productId: item.id, screen: 'products', productOrigin: selectedProductOrigin }, '', `/product/${item.id}`);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
               />
