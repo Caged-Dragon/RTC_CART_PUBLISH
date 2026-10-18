@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
 import { dbSelectSWR } from '../lib/supabase';
 import { useStore } from '../context/StoreContext';
+import { navigateToConfiguredTarget } from '../utils/navigationTarget';
+import type { ScreenId } from './Navbar';
 
 interface BannerRow {
   id: string;
@@ -13,22 +15,13 @@ interface BannerRow {
   button_text?: string | null;
   button_url?: string | null;
   display_order: number;
-  offers?: { title?: string | null };
+  starts_at?: string | null;
+  ends_at?: string | null;
+  is_active?: boolean;
+  offers?: { title?: string | null; is_active?: boolean; starts_at?: string | null; ends_at?: string | null };
 }
 
-interface HomeBannerProps { onNavigate: (screen: any) => void; }
-
-function navigateFromBanner(onNavigate: HomeBannerProps['onNavigate'], url?: string | null) {
-  const target = url?.trim();
-  if (!target) return;
-  if (/^https?:\/\//i.test(target)) {
-    window.open(target, '_blank', 'noopener,noreferrer');
-    return;
-  }
-  const clean = target.replace(/^\//, '').split('?')[0];
-  const allowed = ['products', 'table', 'cart', 'myorders', 'tracker', 'whatsapp', 'mail', 'auth', 'gift-boxes', 'transport', 'safety', 'reviews'];
-  if (allowed.includes(clean)) onNavigate(clean);
-}
+interface HomeBannerProps { onNavigate: (screen: ScreenId) => void; }
 
 export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
   const { storeInfo } = useStore();
@@ -36,9 +29,21 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    // Keep the existing Supabase integration/query untouched.
-    dbSelectSWR<BannerRow>('offer_banners', 'select=*,offers!inner(title)&is_active=eq.true&order=display_order.asc', (rows) => setBanners(rows))
-      .catch(() => setBanners([]));
+    let active = true;
+    const now = Date.now();
+    dbSelectSWR<BannerRow>('offer_banners', 'select=*,offers!inner(title,is_active,starts_at,ends_at)&is_active=eq.true&offers.is_active=eq.true&order=display_order.asc', (rows) => {
+      if (!active) return;
+      const available = rows.filter((item) => {
+        const start = item.starts_at ? Date.parse(item.starts_at) : NaN;
+        const end = item.ends_at ? Date.parse(item.ends_at) : NaN;
+        const offerStart = item.offers?.starts_at ? Date.parse(item.offers.starts_at) : NaN;
+        const offerEnd = item.offers?.ends_at ? Date.parse(item.offers.ends_at) : NaN;
+        return (!Number.isFinite(start) || start <= now) && (!Number.isFinite(end) || end >= now)
+          && (!Number.isFinite(offerStart) || offerStart <= now) && (!Number.isFinite(offerEnd) || offerEnd >= now);
+      });
+      setBanners(available);
+    }).catch(() => { if (active) setBanners([]); });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -57,6 +62,8 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
   const headline = useMemo(() => banner?.headline?.trim() || 'Celebrate More. Spend Less.', [banner?.headline]);
   const subheadline = useMemo(() => banner?.subheadline?.trim() || 'Quality Crackers at Factory Direct Prices', [banner?.subheadline]);
   const offerTitle = banner?.offers?.title || 'THIS DIWALI';
+  const hasCustomHeadline = Boolean(banner?.headline?.trim());
+  const handleShopNow = () => navigateToConfiguredTarget(banner?.button_url, onNavigate, 'products');
 
   return (
     <section data-rtc-component="home_banner" className="rt-hero">
@@ -68,11 +75,11 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
       <div className="rt-container rt-hero-inner">
         <div className="rt-hero-content">
           <span className="rt-hero-kicker"><Sparkles /> {offerTitle}</span>
-          <h1 data-rtc-component="hero_heading">{headline}</h1>
+          <h1 data-rtc-component="hero_heading">{hasCustomHeadline ? headline : <><span className="rt-hero-highlight-gold">Celebrate More.</span><br /><span>Spend Less.</span></>}</h1>
           <p data-rtc-component="hero_paragraph">{subheadline}</p>
 
           <div className="rt-hero-actions">
-            <button onClick={() => onNavigate('products')} className="rt-btn rt-btn-primary">Shop Now <ArrowRight /></button>
+            <button onClick={handleShopNow} className="rt-btn rt-btn-primary">{banner?.button_text?.trim() || 'Shop Now'} <ArrowRight /></button>
             <a className="rt-btn rt-btn-whatsapp" href={`https://wa.me/${storeInfo.phone}`} target="_blank" rel="noreferrer"><MessageCircle /> Order on WhatsApp</a>
           </div>
 

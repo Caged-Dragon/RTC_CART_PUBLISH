@@ -69,11 +69,19 @@ export const ProductsScreen: React.FC = () => {
     const setCategoryFromEvent = (event: Event) => { setSelectedCategory((event as CustomEvent<string>).detail || 'All'); setBestOnly(false); };
     const setBudgetFromEvent = (event: Event) => { const budget = (event as CustomEvent<string>).detail as PriceBand; setPriceBand(PRICE_BANDS.some((band) => band.id === budget) ? budget : 'all'); };
     const setBest = () => setBestOnly(true);
+    const focusProductSearch = () => document.querySelector<HTMLInputElement>('.rt-shop-toolbar-search input')?.focus();
+    const resetAllFromEvent = () => {
+      setSearch(''); setSelectedCategory('All'); setPriceBand('all'); setAvailability('all'); setPackType('all');
+      setPieceBand('all'); setSmartTag('all'); setGreenOnly(false); setBestOnly(false); setFeaturedOnly(false);
+    };
+    window.addEventListener('rt-reset-product-filters', resetAllFromEvent);
     window.addEventListener('rt-search-products', setSearchFromEvent);
     window.addEventListener('rt-select-category', setCategoryFromEvent);
     window.addEventListener('rt-budget-filter', setBudgetFromEvent);
     window.addEventListener('rt-best-sellers', setBest);
+    window.addEventListener('rt-focus-product-search', focusProductSearch);
     const pending = consumeShopIntent();
+    if (pending?.type === 'all') resetAllFromEvent();
     if (pending?.type === 'search') setSearch(pending.value);
     if (pending?.type === 'category') setSelectedCategory(pending.value);
     if (pending?.type === 'budget') setPriceBand(PRICE_BANDS.some((band) => band.id === pending.value) ? pending.value as PriceBand : 'all');
@@ -92,8 +100,8 @@ export const ProductsScreen: React.FC = () => {
     if (query) setSearch(query);
     if (productId) { const product = products.find((item) => item.id === productId); if (product) setSelectedProduct(product); }
     return () => {
-      window.removeEventListener('rt-search-products', setSearchFromEvent); window.removeEventListener('rt-select-category', setCategoryFromEvent);
-      window.removeEventListener('rt-budget-filter', setBudgetFromEvent); window.removeEventListener('rt-best-sellers', setBest); window.removeEventListener('popstate', syncDetailFromUrl);
+      window.removeEventListener('rt-reset-product-filters', resetAllFromEvent); window.removeEventListener('rt-search-products', setSearchFromEvent); window.removeEventListener('rt-select-category', setCategoryFromEvent);
+      window.removeEventListener('rt-budget-filter', setBudgetFromEvent); window.removeEventListener('rt-best-sellers', setBest); window.removeEventListener('rt-focus-product-search', focusProductSearch); window.removeEventListener('popstate', syncDetailFromUrl);
     };
   }, [products]);
 

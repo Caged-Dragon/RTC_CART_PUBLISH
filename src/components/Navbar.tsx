@@ -64,7 +64,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
     () => [
       { id: 'intro', label: 'Home' },
       { id: 'products', label: 'Shop' },
+      { id: 'products', label: 'Categories' },
       { id: 'combos', label: 'Combos' },
+      { id: 'intro', label: 'Best Sellers' },
       { id: 'about', label: 'About Us' },
       { id: 'safety', label: 'Safety' },
       { id: 'contact', label: 'Contact' },
@@ -92,6 +94,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
   const selectCategory = (categoryName: string) => {
     handleNav('products');
     setShopIntent({ type: 'category', value: categoryName });
+  };
+
+  const showBestSellers = () => {
+    handleNav('intro');
+    window.setTimeout(() => document.getElementById('best-sellers')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
 
@@ -150,20 +157,21 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
       <div className="rt-nav-bottom">
         <div className="rt-container rt-nav-bottom-inner">
           <nav className="rt-primary-nav" aria-label="Main navigation">
-            {primaryNav.map((item, index) => {
-              const isCategory = index === 1;
-              const isBest = index === 3;
-              const active = isBest ? false : currentScreen === item.id;
+            {primaryNav.map((item) => {
+              const isCategory = item.label === 'Categories';
+              const isBest = item.label === 'Best Sellers';
+              const active = isCategory ? categoriesOpen : (isBest ? false : currentScreen === item.id);
               return (
-                <div className="rt-nav-item-wrap" key={`${item.label}-${index}`}>
+                <div className="rt-nav-item-wrap" key={item.label}>
                   <button
                     className={`rt-nav-link ${active ? 'active' : ''}`}
                     onClick={() => {
                       if (isCategory) setCategoriesOpen((v) => !v);
-                      else if (isBest) {
-                        handleNav('products');
-                        setShopIntent({ type: 'all' } as any);
-                      } else handleNav(item.id);
+                      else if (isBest) showBestSellers();
+                      else {
+                        handleNav(item.id);
+                        if (item.label === 'Shop') setShopIntent({ type: 'all' });
+                      }
                     }}
                     aria-expanded={isCategory ? categoriesOpen : undefined}
                   >
@@ -204,7 +212,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
             </form>
             <div className="rt-mobile-grid">
               <button onClick={() => handleNav('intro')}><Home /> Home</button>
-              <button onClick={() => handleNav('products')}><Grid2X2 /> Shop</button>
+              <button onClick={() => { handleNav('products'); setShopIntent({ type: 'all' }); }}><Grid2X2 /> Shop</button>
+              <button onClick={() => selectCategory('All')}><Grid2X2 /> Categories</button>
+              <button onClick={showBestSellers}><Gift /> Best Sellers</button>
               <button onClick={() => handleNav('combos')}><Gift /> Combos</button>
               <button onClick={() => handleNav('gift-boxes')}><Gift /> Gift Boxes</button>
               <button onClick={() => handleNav('cart')}><ShoppingCart /> Cart {totalBoxes > 0 && <b>{totalBoxes}</b>}</button>

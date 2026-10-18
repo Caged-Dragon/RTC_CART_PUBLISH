@@ -1,5 +1,5 @@
 import React from 'react';
-import { Facebook, Instagram, MessageCircle, ShieldCheck, Youtube } from 'lucide-react';
+import { MessageCircle, ShieldCheck } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { ScreenId } from './Navbar';
 
@@ -21,11 +21,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenSafety, onNavigate }) => {
             <div className="rt-footer-sub">CRACKERS</div>
             <p>{storeInfo.tagline}. Factory-direct crackers from Sivakasi for family celebrations, gifting and festive events.</p>
             <div className="rt-footer-proof"><ShieldCheck /> Genuine Sivakasi Factory Direct Stock</div>
-            <div className="rt-socials" aria-label="Social media">
-              <a href="#instagram" aria-label="Instagram"><Instagram /></a>
-              <a href="#facebook" aria-label="Facebook"><Facebook /></a>
-              <a href="#youtube" aria-label="YouTube"><Youtube /></a>
-              <a href={`https://wa.me/${storeInfo.phone}`} target="_blank" rel="noreferrer" aria-label="WhatsApp"><MessageCircle /></a>
+            <div className="rt-socials" aria-label="Contact channels">
+              <a href={`https://wa.me/${storeInfo.phone}`} target="_blank" rel="noreferrer" aria-label="WhatsApp support"><MessageCircle /></a>
             </div>
           </div>
 
@@ -51,8 +48,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenSafety, onNavigate }) => {
           <div>
             <h3>Information</h3>
             <button onClick={() => go('transport')}>Shipping Policy</button>
-            <button onClick={() => go('transport')}>Cancellation Policy</button>
-            <button onClick={() => go('transport')}>Refund Policy</button>
+            <button onClick={() => go('contact')}>Cancellation Enquiries</button>
+            <button onClick={() => go('contact')}>Refund Enquiries</button>
             <button onClick={() => go('safety')}>Safety & Terms</button>
             <button onClick={() => go('about')}>About RedThunder</button>
           </div>

@@ -1,4 +1,5 @@
 export type ShopIntent =
+  | { type: 'all' }
   | { type: 'search'; value: string }
   | { type: 'category'; value: string }
   | { type: 'budget'; value: string }
@@ -8,6 +9,7 @@ const KEY = 'redthunder_shop_intent_v1';
 
 export function setShopIntent(intent: ShopIntent) {
   try { sessionStorage.setItem(KEY, JSON.stringify(intent)); } catch {}
+  if (intent.type === 'all') window.dispatchEvent(new CustomEvent('rt-reset-product-filters'));
   if (intent.type === 'search') window.dispatchEvent(new CustomEvent<string>('rt-search-products', { detail: intent.value }));
   if (intent.type === 'category') window.dispatchEvent(new CustomEvent<string>('rt-select-category', { detail: intent.value }));
   if (intent.type === 'budget') window.dispatchEvent(new CustomEvent<string>('rt-budget-filter', { detail: intent.value }));

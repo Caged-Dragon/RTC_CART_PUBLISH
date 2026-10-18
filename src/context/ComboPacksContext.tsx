@@ -55,7 +55,7 @@ export const ComboPacksProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const refreshCombos = useCallback(async () => {
     setIsLoading(true);
     try {
-      await dbSelectSWR<any>('combo_pack_catalogue', 'select=id,website_key,combo_code,name,slug,short_title,description,tagline,image_url,budget_tier,pricing_mode,manual_price,badge_text,is_active,is_featured,display_order,calculated_price,live_items_total,total_units,distinct_products,items&order=display_order.asc,id.asc', (rows) => {
+      await dbSelectSWR<any>('combo_pack_catalogue', 'select=id,website_key,combo_code,name,slug,short_title,description,tagline,image_url,budget_tier,pricing_mode,manual_price,badge_text,is_active,is_featured,display_order,calculated_price,live_items_total,total_units,distinct_products,items&website_key=eq.cart&is_active=eq.true&order=display_order.asc,id.asc', (rows) => {
       const next = rows
         .map((row) => {
           const rawItems: any[] = Array.isArray(row.items) ? row.items : [];

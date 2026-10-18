@@ -24,12 +24,12 @@ interface HomepagePicksContextValue {
 const HomepagePicksContext = createContext<HomepagePicksContextValue | undefined>(undefined);
 
 export const HomepagePicksProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { products } = useProducts();
+  const { products, isLoading: productsLoading } = useProducts();
   const [picks, setPicks] = useState<HomepagePick[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshPicks = useCallback(async () => {
-    if (!products.length) return;
+    if (productsLoading) return;
     setIsLoading(true);
     try {
       await dbSelectSWR<any>('homepage_customer_picks', 'select=id,product_id,display_order,badge_text,customer_label,customer_reason,customer_score,rating_stars,rating_count&website_key=eq.cart&is_active=eq.true&order=display_order.asc,id.asc', (rows) => {
@@ -63,7 +63,7 @@ export const HomepagePicksProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [products]);
+  }, [products, productsLoading]);
 
   useEffect(() => { void refreshPicks(); }, [refreshPicks]);
 

@@ -244,13 +244,13 @@ export default function App() {
           <CategoriesProvider>
             <ProductsProvider>
               <HomepagePicksProvider>
-              <ComboPacksProvider>
-              <ToastProvider>
-                <CartProvider>
-                  <StorefrontApp />
-                </CartProvider>
-              </ToastProvider>
-              </ComboPacksProvider>
+                <ComboPacksProvider>
+                  <ToastProvider>
+                    <CartProvider>
+                      <StorefrontApp />
+                    </CartProvider>
+                  </ToastProvider>
+                </ComboPacksProvider>
               </HomepagePicksProvider>
             </ProductsProvider>
           </CategoriesProvider>

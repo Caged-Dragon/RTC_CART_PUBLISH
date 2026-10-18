@@ -37,7 +37,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, compact = fal
 
       <div className="rt-product-body">
         <div className="rt-product-kicker"><span>{product.category}</span><span>{product.unit}</span></div>
-        <button className="rt-product-title" onClick={onViewDetails} disabled={!onViewDetails} aria-label={onViewDetails ? `View ${product.name}` : product.name}>{product.name}</button>
+        {onViewDetails ? (
+          <button className="rt-product-title" onClick={onViewDetails} aria-label={`View ${product.name}`}>{product.name}</button>
+        ) : (
+          <h3 className="rt-product-title static">{product.name}</h3>
+        )}
         {!compact && <p className="rt-product-description">{product.description}</p>}
         {product.pieces && <small className="rt-product-pack">Pack: {product.pieces}</small>}
 

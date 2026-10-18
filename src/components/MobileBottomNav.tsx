@@ -13,7 +13,10 @@ export const MobileBottomNav: React.FC<Props> = ({ currentScreen, setCurrentScre
   const goShop = (mode?: string) => {
     setCurrentScreen('products');
     if (mode === 'category') setShopIntent({ type: 'category', value: 'All' });
-    if (mode === 'search') setShopIntent({ type: 'search', value: '' });
+    if (mode === 'search') {
+      setShopIntent({ type: 'search', value: '' });
+      window.setTimeout(() => window.dispatchEvent(new CustomEvent('rt-focus-product-search')), 120);
+    }
   };
   return (
     <nav className="rt-mobile-bottom-nav" aria-label="Mobile navigation">
