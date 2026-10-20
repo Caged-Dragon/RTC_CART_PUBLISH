@@ -34,6 +34,9 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
   const [index, setIndex] = useState(0);
   const [bannerImageFailed, setBannerImageFailed] = useState(false);
   const [useReferenceMobileArt, setUseReferenceMobileArt] = useState(false);
+  // Start with the campaign banner ratio, then use the natural ratio of the active image
+  // (including the mobile <source>) so the frame is content-driven at every viewport size.
+  const [bannerAspectRatio, setBannerAspectRatio] = useState('1586 / 570');
 
   useEffect(() => {
     let active = true;
@@ -60,6 +63,7 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
   useEffect(() => {
     setBannerImageFailed(false);
     setUseReferenceMobileArt(false);
+    setBannerAspectRatio('1586 / 570');
   }, [banners[index]?.id, banners[index]?.image_url, banners[index]?.mobile_image_url]);
 
   useEffect(() => {
@@ -91,7 +95,7 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
       {banner ? (
         <>
           {/* Uploaded banners are complete artwork. Keep their natural ratio: no crop, stretch, or overlaid text. */}
-          <div className="rt-hero-composed">
+          <div className="rt-hero-composed" style={{ aspectRatio: bannerAspectRatio }}>
             <img className="rt-hero-composed-backdrop" src={background} alt="" aria-hidden="true" decoding="async" />
             <picture className="rt-hero-composed-image">
               <source media="(max-width: 640px)" srcSet={mobileBackground} />
@@ -102,8 +106,12 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
                 decoding="async"
                 onLoad={(event) => {
                   const image = event.currentTarget;
-                  // The frame size is controlled by responsive CSS (viewport width and height),
-                  // while the image is contained inside it so every part of the artwork remains visible.
+                  // Size the banner from the actual source image dimensions, not fixed viewport
+                  // heights. This makes it scale continuously when the viewport changes or the
+                  // browser is zoomed. The selected <picture> source reports its own dimensions.
+                  if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+                    setBannerAspectRatio(`${image.naturalWidth} / ${image.naturalHeight}`);
+                  }
                   // Avoid using a landscape creative as a phone banner when the database's mobile URL
                   // accidentally points to the same artwork as the desktop image.
                   if (window.matchMedia('(max-width: 640px)').matches && image.naturalWidth > image.naturalHeight * 1.25) {

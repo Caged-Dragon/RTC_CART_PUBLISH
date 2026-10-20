@@ -2,24 +2,17 @@
 
 ## What changed
 
-- Removed the JavaScript-measured `aspectRatio` sizing dependency from `HomeBanner.tsx`.
-- The banner frame now scales responsively using viewport width and viewport height, with separate desktop/tablet and mobile sizing rules.
-- The complete uploaded image is contained inside the frame (`object-fit: contain`) so artwork is not stretched or cropped.
-- A blurred, darkened backdrop fills the unused space around differently proportioned artwork.
-- The CTA row remains a normal flex child below the image; it does not overlay or obscure the banner.
-- On mobile, landscape uploads fall back to the portrait reference artwork when needed.
+- The active banner image reports its intrinsic width/height ratio to `HomeBanner.tsx`.
+- The frame uses that ratio and `width: 100%`; it has no fixed height, viewport-height cap, or min/max pixel height. This means the banner continuously scales when the viewport changes or browser zoom changes the CSS viewport.
+- The active `<picture>` source supplies the ratio, so switching to portrait mobile art also switches the frame to that image's natural proportions.
+- `object-fit: contain` keeps all banner artwork visible without stretching or cropping.
+- The Shop/WhatsApp CTA row remains in normal document flow after the banner.
+- A blurred background fills any letterbox space without obscuring the banner itself.
 
 ## Validation
 
-- `node --test`: all 8 automated tests passed, including the new banner regression check.
-- `tsc --noEmit` / production build cannot be completed in this workspace because `node_modules` is absent (React, Lucide and JSX runtime types are therefore unresolved).
-
-## Files changed
-
-- `src/components/HomeBanner.tsx`
-- `src/index.css`
-- `tests/brand-banner-visibility.test.cjs`
-- `README.md`
+- The regression test checks for image-derived aspect-ratio sizing and rejects fixed/clamped banner heights in the final rules.
+- Browser-level build/visual checks still require installing dependencies locally (`npm ci`), then running `npm test`, `npm run lint`, and `npm run build`.
 
 ## Run locally
 
