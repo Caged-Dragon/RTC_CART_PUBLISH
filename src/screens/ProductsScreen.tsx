@@ -7,7 +7,7 @@ import { useCategories } from '../context/CategoriesContext';
 import { useProducts } from '../context/ProductsContext';
 import { useCart } from '../context/CartContext';
 import { ProductDetailScreen } from './ProductDetailScreen';
-import { consumeShopIntent } from '../utils/shopNavigation';
+import { buildCategorySearch, consumeShopIntent } from '../utils/shopNavigation';
 
 const PRICE_BANDS = [
   { id: 'all', label: 'Any price', min: 0, max: Infinity },
@@ -51,7 +51,7 @@ export const ProductsScreen: React.FC = () => {
   const { categories } = useCategories();
   const { totalBoxes, subtotal, setIsCartOpen } = useCart();
   const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState(() => new URLSearchParams(window.location.search).get('category') || 'All');
   const [priceBand, setPriceBand] = useState<PriceBand>('all');
   const [availability, setAvailability] = useState<Availability>('all');
   const [packType, setPackType] = useState<PackType>('all');
@@ -80,14 +80,25 @@ export const ProductsScreen: React.FC = () => {
     window.addEventListener('rt-budget-filter', setBudgetFromEvent);
     window.addEventListener('rt-best-sellers', setBest);
     window.addEventListener('rt-focus-product-search', focusProductSearch);
+    const paramsAtMount = new URLSearchParams(window.location.search);
+    const categoryAtMount = paramsAtMount.get('category');
     const pending = consumeShopIntent();
-    if (pending?.type === 'all') resetAllFromEvent();
-    if (pending?.type === 'search') setSearch(pending.value);
-    if (pending?.type === 'category') setSelectedCategory(pending.value);
+    if (categoryAtMount) {
+      const match = categories.find((item) => item.category_name.trim().toLocaleLowerCase() === categoryAtMount.trim().toLocaleLowerCase());
+      setSelectedCategory(match?.category_name || (categories.length ? 'All' : categoryAtMount));
+    } else if (pending?.type === 'all') resetAllFromEvent();
+    else if (pending?.type === 'search') setSearch(pending.value);
+    else if (pending?.type === 'category') setSelectedCategory(pending.value);
     if (pending?.type === 'budget') setPriceBand(PRICE_BANDS.some((band) => band.id === pending.value) ? pending.value as PriceBand : 'all');
     if (pending?.type === 'best-sellers') setBestOnly(true);
     const syncDetailFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
+      const urlCategory = params.get('category');
+      if (!urlCategory) setSelectedCategory('All');
+      else {
+        const match = categories.find((item) => item.category_name.trim().toLocaleLowerCase() === urlCategory.trim().toLocaleLowerCase());
+        setSelectedCategory(match?.category_name || (categories.length ? 'All' : urlCategory));
+      }
       const pathMatch = window.location.pathname.match(/^\/product\/(\d+)$/);
       const id = Number(pathMatch?.[1] || params.get('product'));
       setSelectedProduct(id ? products.find((item) => item.id === id) || null : null);
@@ -103,7 +114,16 @@ export const ProductsScreen: React.FC = () => {
       window.removeEventListener('rt-reset-product-filters', resetAllFromEvent); window.removeEventListener('rt-search-products', setSearchFromEvent); window.removeEventListener('rt-select-category', setCategoryFromEvent);
       window.removeEventListener('rt-budget-filter', setBudgetFromEvent); window.removeEventListener('rt-best-sellers', setBest); window.removeEventListener('rt-focus-product-search', focusProductSearch); window.removeEventListener('popstate', syncDetailFromUrl);
     };
-  }, [products]);
+  }, [products, categories]);
+
+  // Make category filters shareable and persistent across refreshes and browser back/forward.
+  useEffect(() => {
+    if (window.location.pathname !== '/products') return;
+    const searchParams = buildCategorySearch(window.location.search, selectedCategory);
+    const next = `${window.location.pathname}${searchParams}${window.location.hash}`;
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (next !== current) window.history.replaceState({ ...(window.history.state || {}), screen: 'products' }, '', next);
+  }, [selectedCategory]);
 
   const categoryNames = useMemo(() => ['All', ...categories.filter((c) => c.is_active).map((c) => c.category_name)], [categories]);
   const activeFilterCount = [selectedCategory !== 'All', priceBand !== 'all', availability !== 'all', packType !== 'all', pieceBand !== 'all', smartTag !== 'all', greenOnly, bestOnly, featuredOnly, !!search].filter(Boolean).length;
@@ -120,7 +140,7 @@ export const ProductsScreen: React.FC = () => {
     };
     return products.filter((product) => {
       const text = `${normalize(product.name)} ${normalize(product.category)} ${normalize(product.description)}`;
-      if (selectedCategory !== 'All' && product.category !== selectedCategory) return false;
+      if (selectedCategory !== 'All' && normalize(product.category).trim() !== normalize(selectedCategory).trim()) return false;
       if (!(product.rate >= band.min && product.rate < band.max + (band.max === Infinity ? 1 : 0))) return false;
       if (availability === 'in' && product.stockStatus === 'OUT_OF_STOCK') return false;
       if (availability === 'low' && product.stockStatus !== 'LOW_STOCK') return false;
@@ -140,7 +160,7 @@ export const ProductsScreen: React.FC = () => {
   const FilterControls = () => <>
     <div className="rt-smart-filter-highlight"><Sparkles /><div><strong>Smart shopping filters</strong><small>20+ ways to narrow the catalogue without losing the festive feel.</small></div></div>
     <div className="rt-filter-group"><label>Smart picks</label><div className="rt-filter-chip-grid">{SMART_TAGS.map((tag) => <button key={tag.id} className={smartTag === tag.id ? 'selected' : ''} onClick={() => setSmartTag(tag.id)}>{tag.label}</button>)}</div></div>
-    <div className="rt-filter-group"><label>Category</label><div className="rt-filter-option-list">{categoryNames.map((name) => <button key={name} className={selectedCategory === name ? 'selected' : ''} onClick={() => setSelectedCategory(name)}>{name}<span>{name === 'All' ? products.length : products.filter((p) => p.category === name).length}</span></button>)}</div></div>
+    <div className="rt-filter-group"><label>Category</label><div className="rt-filter-option-list">{categoryNames.map((name) => <button key={name} className={selectedCategory === name ? 'selected' : ''} onClick={() => setSelectedCategory(name)}>{name}<span>{name === 'All' ? products.length : products.filter((p) => normalize(p.category).trim() === normalize(name).trim()).length}</span></button>)}</div></div>
     <div className="rt-filter-group"><label>Budget</label><div className="rt-filter-chip-grid">{PRICE_BANDS.map((band) => <button key={band.id} className={priceBand === band.id ? 'selected' : ''} onClick={() => setPriceBand(band.id)}>{band.label}</button>)}</div></div>
     <div className="rt-filter-group"><label>Pack format</label><div className="rt-filter-chip-grid">{(['all', 'Box', 'Pkt', 'Tube'] as PackType[]).map((item) => <button key={item} className={packType === item ? 'selected' : ''} onClick={() => setPackType(item)}>{item === 'all' ? 'Any pack' : item}</button>)}</div></div>
     <div className="rt-filter-group"><label>Pieces per pack</label><div className="rt-filter-chip-grid">{([['all','Any quantity'],['1-10','1–10'],['11-25','11–25'],['26-50','26–50'],['51+','51+']] as [PieceBand,string][]).map(([id,label]) => <button key={id} className={pieceBand === id ? 'selected' : ''} onClick={() => setPieceBand(id)}>{label}</button>)}</div></div>
@@ -156,7 +176,7 @@ export const ProductsScreen: React.FC = () => {
 
   return <div className="rt-shop-page" data-rtc-component="product_grid">
     <div className="rt-container">
-      <div className="rt-shop-header"><div><span className="rt-kicker">RedThunder catalogue</span><h1>Shop all crackers</h1><p>Search 127 live products with smart filters for price, style, pack size, availability and customer intent.</p></div>{totalBoxes > 0 && <button className="rt-cart-pill" onClick={() => setIsCartOpen(true)}>Cart {totalBoxes} · ₹{subtotal.toLocaleString('en-IN')}</button>}</div>
+      <div className="rt-shop-header"><div><span className="rt-kicker">RedThunder catalogue</span><h1>{selectedCategory === 'All' ? 'Shop all crackers' : selectedCategory}</h1><p>{selectedCategory === 'All' ? 'Browse the live product catalogue with filters for price, style, pack size and availability.' : `Showing products in ${selectedCategory}. Change the category or clear filters at any time.`}</p></div>{totalBoxes > 0 && <button className="rt-cart-pill" onClick={() => setIsCartOpen(true)}>Cart {totalBoxes} · ₹{subtotal.toLocaleString('en-IN')}</button>}</div>
       <QuickOrder />
       <div className="rt-shop-layout">
         <aside className={`rt-filter-sidebar ${filtersOpen ? 'open' : ''}`} aria-label="Product filters"><div className="rt-filter-head"><strong><Filter /> Filters <span>{activeFilterCount}</span></strong><button onClick={() => setFiltersOpen(false)} aria-label="Close filters"><X /></button></div><FilterControls /></aside>

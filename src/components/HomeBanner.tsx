@@ -3,6 +3,8 @@ import { ArrowRight, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
 import { dbSelectSWR } from '../lib/supabase';
 import { useStore } from '../context/StoreContext';
 import { navigateToConfiguredTarget } from '../utils/navigationTarget';
+import { setShopIntent } from '../utils/shopNavigation';
+import { getWhatsAppHref } from '../utils/contactLinks';
 import type { ScreenId } from './Navbar';
 
 interface BannerRow {
@@ -22,6 +24,9 @@ interface BannerRow {
 }
 
 interface HomeBannerProps { onNavigate: (screen: ScreenId) => void; }
+
+const REFERENCE_DESKTOP = '/images/storefront/hero-desktop.jpg';
+const REFERENCE_MOBILE = '/images/storefront/hero-mobile.jpg';
 
 export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
   const { storeInfo } = useStore();
@@ -63,38 +68,62 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
   const subheadline = useMemo(() => banner?.subheadline?.trim() || 'Quality Crackers at Factory Direct Prices', [banner?.subheadline]);
   const offerTitle = banner?.offers?.title || 'THIS DIWALI';
   const hasCustomHeadline = Boolean(banner?.headline?.trim());
-  const handleShopNow = () => navigateToConfiguredTarget(banner?.button_url, onNavigate, 'products');
+  const whatsappHref = getWhatsAppHref(storeInfo.phone);
+  const handleShopNow = () => {
+    if (banner) {
+      navigateToConfiguredTarget(banner.button_url, onNavigate, 'products');
+      return;
+    }
+    setShopIntent({ type: 'all' });
+    onNavigate('products');
+  };
 
   return (
-    <section data-rtc-component="home_banner" className="rt-hero">
-      <picture className="rt-hero-image">
-        <source media="(max-width: 640px)" srcSet={mobileBackground} />
-        <img src={background} alt={banner?.alt_text || 'RedThunder Crackers Diwali celebration'} fetchPriority="high" decoding="async" />
-      </picture>
-      <div className="rt-hero-sheen" aria-hidden="true" />
-      <div className="rt-container rt-hero-inner">
-        <div className="rt-hero-content">
-          <span className="rt-hero-kicker"><Sparkles /> {offerTitle}</span>
-          <h1 data-rtc-component="hero_heading">{hasCustomHeadline ? headline : <><span className="rt-hero-highlight-gold">Celebrate More.</span><br /><span>Spend Less.</span></>}</h1>
-          <p data-rtc-component="hero_paragraph">{subheadline}</p>
+    <section data-rtc-component="home_banner" className={`rt-hero ${banner ? 'rt-hero-dynamic' : 'rt-hero-reference'}`}>
+      {banner ? (
+        <>
+          <picture className="rt-hero-image">
+            <source media="(max-width: 640px)" srcSet={mobileBackground} />
+            <img src={background} alt={banner.alt_text || 'RedThunder Crackers Diwali celebration'} fetchPriority="high" decoding="async" />
+          </picture>
+          <div className="rt-hero-sheen" aria-hidden="true" />
+          <div className="rt-container rt-hero-inner">
+            <div className="rt-hero-content">
+              <span className="rt-hero-kicker"><Sparkles /> {offerTitle}</span>
+              <h1 data-rtc-component="hero_heading">{hasCustomHeadline ? headline : <><span className="rt-hero-highlight-gold">Celebrate More.</span><br /><span>Spend Less.</span></>}</h1>
+              <p data-rtc-component="hero_paragraph">{subheadline}</p>
 
-          <div className="rt-hero-actions">
-            <button onClick={handleShopNow} className="rt-btn rt-btn-primary">{banner?.button_text?.trim() || 'Shop Now'} <ArrowRight /></button>
-            <a className="rt-btn rt-btn-whatsapp" href={`https://wa.me/${storeInfo.phone}`} target="_blank" rel="noreferrer"><MessageCircle /> Order on WhatsApp</a>
-          </div>
+              <div className="rt-hero-actions">
+                <button onClick={handleShopNow} className="rt-btn rt-btn-primary">{banner.button_text?.trim() || 'Shop Now'} <ArrowRight /></button>
+                <a className="rt-btn rt-btn-whatsapp" href={whatsappHref || '/contact'} target={whatsappHref ? '_blank' : undefined} rel={whatsappHref ? 'noreferrer' : undefined} onClick={(event) => { if (!whatsappHref) { event.preventDefault(); onNavigate('contact'); } }}><MessageCircle /> Order on WhatsApp</a>
+              </div>
 
-          <div className="rt-hero-features" aria-label="Store benefits">
-            <span><ShieldCheck /> Direct from Sivakasi</span>
-            <span><Sparkles /> Factory pricing</span>
-            <span><MessageCircle /> Quick WhatsApp ordering</span>
+              <div className="rt-hero-features" aria-label="Store benefits">
+                <span><ShieldCheck /> Direct from Sivakasi</span>
+                <span><Sparkles /> Factory pricing</span>
+                <span><MessageCircle /> Quick WhatsApp ordering</span>
+              </div>
+            </div>
+            <div className="rt-hero-badge" aria-hidden="true">
+              <span>DIRECT FROM</span>
+              <strong>SIVAKASI</strong>
+              <small>Quality • Value • Fast Dispatch</small>
+            </div>
           </div>
-        </div>
-        <div className="rt-hero-badge" aria-hidden="true">
-          <span>DIRECT FROM</span>
-          <strong>SIVAKASI</strong>
-          <small>Quality • Value • Fast Dispatch</small>
-        </div>
-      </div>
+        </>
+      ) : (
+        <>
+          <div className="rt-sr-only"><h1>Celebrate More. Spend Less.</h1><p>Quality Crackers at Factory Direct Prices</p></div>
+          <picture className="rt-hero-reference-image">
+            <source media="(max-width: 640px)" srcSet={REFERENCE_MOBILE} />
+            <img src={REFERENCE_DESKTOP} alt="This Diwali: Celebrate More. Spend Less. Quality crackers at factory direct prices. Shop Now or order on WhatsApp." fetchPriority="high" decoding="async" width={1586} height={570} />
+          </picture>
+          <div className="rt-hero-reference-hotspots" aria-label="Shopping options">
+            <button className="rt-hero-hotspot rt-hero-hotspot-shop" onClick={handleShopNow} aria-label="Shop now">Shop now</button>
+            <a className="rt-hero-hotspot rt-hero-hotspot-whatsapp" href={whatsappHref || '/contact'} target={whatsappHref ? '_blank' : undefined} rel={whatsappHref ? 'noreferrer' : undefined} onClick={(event) => { if (!whatsappHref) { event.preventDefault(); onNavigate('contact'); } }} aria-label="Order on WhatsApp">Order on WhatsApp</a>
+          </div>
+        </>
+      )}
 
       {banners.length > 1 && (
         <div className="rt-hero-dots" aria-label="Promotional banners">

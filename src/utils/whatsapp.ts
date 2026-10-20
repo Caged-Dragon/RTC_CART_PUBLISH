@@ -1,18 +1,18 @@
 import { CartItem, CustomerDetails } from '../context/CartContext';
-import { STORE_INFO as FALLBACK_STORE } from '../data/products';
+import type { StoreInfo } from '../data/products';
 
-type StoreRef = { name: string; phone: string };
+type StoreRef = Pick<StoreInfo, 'name' | 'phone' | 'city' | 'state'>;
 
 export function formatWhatsAppMessage(
   cart: CartItem[],
   customer: CustomerDetails,
   subtotal: number,
   orderId: string,
-  store: StoreRef = FALLBACK_STORE
+  store: StoreRef
 ): string {
   const dateStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
-  let message = `💥 *${store.name} - 2026 ORDER* 💥\n`;
+  let message = `💥 *${store.name} - ${new Date().getFullYear()} ORDER* 💥\n`;
   message += `━━━━━━━━━━━━━━━━━━━━━\n`;
   message += `🔖 *Order ID:* ${orderId}\n`;
   message += `📅 *Date:* ${dateStr}\n\n`;
@@ -38,7 +38,7 @@ export function formatWhatsAppMessage(
 
   message += `━━━━━━━━━━━━━━━━━━━━━\n`;
   message += `🧾 *SUBTOTAL: ₹${subtotal.toLocaleString('en-IN')}*\n`;
-  message += `\n📍 *Dispatch Location:* Sivakasi, Tamil Nadu\n`;
+  message += `\n📍 *Dispatch Location:* ${store.city}, ${store.state}\n`;
   message += `⚠️ *Note:* Please confirm product availability & transport delivery charges to ${customer.city || 'my location'} before payment.\n`;
   message += `\nThank you! 🙏`;
   return message;
@@ -49,7 +49,7 @@ export function getWhatsAppUrl(
   customer: CustomerDetails,
   subtotal: number,
   orderId: string,
-  store: StoreRef = FALLBACK_STORE
+  store: StoreRef
 ): string {
   const text = formatWhatsAppMessage(cart, customer, subtotal, orderId, store);
   return `https://wa.me/${store.phone}?text=${encodeURIComponent(text)}`;

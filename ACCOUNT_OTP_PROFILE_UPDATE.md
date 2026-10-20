@@ -1,3 +1,5 @@
+> **Status: historical / superseded.** This document describes an earlier email-OTP proposal and is not the current account flow. The current app uses Supabase Auth email/password endpoints plus server-managed confirmation, recovery, refresh, and logout. See `AUTH_NATIVE_SUPABASE_HANDOFF.md`.
+
 # CART account, email OTP, profile and settings update
 
 ## Frontend changes

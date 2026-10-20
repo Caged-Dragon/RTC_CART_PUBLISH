@@ -17,6 +17,7 @@ import { Footer } from './components/Footer';
 // Customer Screens
 import { IntroScreen } from './screens/IntroScreen';
 const ProductsScreen = lazy(() => import('./screens/ProductsScreen').then(m => ({ default: m.ProductsScreen })));
+const CategoriesScreen = lazy(() => import('./screens/CategoriesScreen').then(m => ({ default: m.CategoriesScreen })));
 const TableScreen = lazy(() => import('./screens/TableScreen').then(m => ({ default: m.TableScreen })));
 const CartPageScreen = lazy(() => import('./screens/CartPageScreen').then(m => ({ default: m.CartPageScreen })));
 const MyOrdersScreen = lazy(() => import('./screens/MyOrdersScreen').then(m => ({ default: m.MyOrdersScreen })));
@@ -42,13 +43,13 @@ import type { Product } from './data/products';
 
 
 const SCREEN_PATHS: Record<ScreenId, string> = {
-  intro: '/', products: '/products', bestsellers: '/best-sellers', table: '/price-list', cart: '/cart', myorders: '/my-orders', tracker: '/track-order',
+  intro: '/', products: '/products', categories: '/categories', bestsellers: '/best-sellers', table: '/price-list', cart: '/cart', myorders: '/my-orders', tracker: '/track-order',
   whatsapp: '/whatsapp-order', mail: '/email-bill', auth: '/login', combos: '/combos', 'gift-boxes': '/gift-boxes', transport: '/transport',
   safety: '/safety', reviews: '/reviews', about: '/about', contact: '/contact',
 };
 const SCREEN_TITLES: Record<ScreenId, string> = {
   intro: 'RT Crackers (Makka & Wheat) – Factory-Direct Sivakasi Crackers 2026',
-  products: 'All Crackers with Photos & Rates | RT Crackers', bestsellers: 'Best Sellers | RT Crackers – Customer Favourites', table: '2026 Price List | RT Crackers', cart: 'Your Cart | RT Crackers',
+  products: 'All Crackers with Photos & Rates | RT Crackers', categories: 'Shop by Category | RT Crackers', bestsellers: 'Best Sellers | RT Crackers – Customer Favourites', table: '2026 Price List | RT Crackers', cart: 'Your Cart | RT Crackers',
   myorders: 'My Orders | RT Crackers', tracker: 'Track Your Order | RT Crackers', whatsapp: 'Order on WhatsApp | RT Crackers',
   mail: 'Email Your Bill | RT Crackers', auth: 'Sign In | RT Crackers', combos: 'Combo Packs | RT Crackers', 'gift-boxes': 'Gift Boxes | RT Crackers',
   transport: 'Transport & Freight | RT Crackers', safety: 'Cracker Safety Guide | RT Crackers', reviews: 'Customer Reviews | RT Crackers', about: 'About RT Crackers | Sivakasi Factory Direct', contact: 'Contact RT Crackers | WhatsApp & Support',
@@ -105,6 +106,7 @@ function StorefrontApp() {
     const descriptions: Record<ScreenId, string> = {
       intro: 'Explore factory-direct crackers from Sivakasi, customer favourites, gift boxes, combo packs and the latest RT Crackers catalogue.',
       products: 'Browse the RT Crackers full product catalogue with live rates, categories, product details and quick add-to-cart ordering.',
+      categories: 'Browse all active RT Crackers product categories, see how many products each contains and open the shop with the category filter applied.',
       bestsellers: 'Shop RT Crackers best sellers and customer favourites. Search products, filter by category, compare prices and add favourites to your cart.',
       table: 'View the RT Crackers product price list and current catalogue rates.',
       cart: 'Review your RT Crackers cart, quantities and order total before checkout.',
@@ -173,6 +175,8 @@ function StorefrontApp() {
             onSelectProduct={(product) => openProductDetails(product, 'bestsellers')}
           />
         )}
+
+        {currentScreen === 'categories' && <CategoriesScreen onNavigate={setCurrentScreen} />}
 
         {currentScreen === 'products' && (
           selectedProductId ? (() => {

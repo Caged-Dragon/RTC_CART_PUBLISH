@@ -34,11 +34,10 @@ export const HomepagePicksProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       await dbSelectSWR<any>('homepage_customer_picks', 'select=id,product_id,display_order,badge_text,customer_label,customer_reason,customer_score,rating_stars,rating_count&website_key=eq.cart&is_active=eq.true&order=display_order.asc,id.asc', (rows) => {
       const byDbId = new Map(products.map((product) => [product.dbId, product]));
-      const byCode = new Map(products.map((product) => [String(product.id), product]));
       setPicks(
         rows
           .map((row) => {
-            const product = byDbId.get(row.product_id) || byCode.get(String(row.product_code));
+            const product = byDbId.get(String(row.product_id));
             if (!product || product.stockStatus === 'OUT_OF_STOCK') return null;
             return {
               id: Number(row.id),

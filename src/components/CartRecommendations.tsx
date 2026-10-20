@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Plus, Sparkles } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useProducts } from '../context/ProductsContext';
-import { getExactProductImage } from '../utils/productImages';
+import { ProductImage } from './ProductImage';
 import type { Product } from '../data/products';
 
 interface CartRecommendationsProps {
@@ -49,7 +49,7 @@ export const CartRecommendations: React.FC<CartRecommendationsProps> = ({ onNavi
       <div className="rt-cart-recommendation-grid">
         {recommendations.map((product: Product) => (
           <article className="rt-cart-recommendation-card" key={product.id}>
-            <img src={getExactProductImage(product)} alt="" loading="lazy" decoding="async" />
+            <ProductImage product={product} alt="" loading="lazy" decoding="async" />
             <div className="rt-cart-recommendation-body">
               <span>{product.category}</span>
               <h3>{product.name}</h3>

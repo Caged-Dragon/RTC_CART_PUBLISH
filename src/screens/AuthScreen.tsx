@@ -1,308 +1,344 @@
-import React, { useState } from 'react';
-import { User, LogIn, LogOut, Lock, Phone, Mail, MapPin, CheckCircle2, ShieldCheck } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import {
+  AlertCircle,
+  ArrowRight,
+  BadgeCheck,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Github,
+  Globe2,
+  KeyRound,
+  LoaderCircle,
+  LockKeyhole,
+  LogIn,
+  LogOut,
+  Mail,
+  MapPin,
+  PackageCheck,
+  Phone,
+  ShieldCheck,
+  ShoppingBag,
+  UserRound,
+  UserRoundPlus,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { ScreenId } from '../components/Navbar';
+import type { AuthOAuthProviderName } from '../lib/supabase';
 
 interface AuthScreenProps {
   onNavigate: (screen: ScreenId) => void;
 }
 
+type AuthMode = 'signin' | 'register';
+type NoticeType = 'success' | 'error' | 'info';
+
+const inputClass = 'rt-auth-input w-full rounded-xl border px-4 py-3 text-sm transition focus:outline-none focus:ring-2 focus:ring-amber-500/30';
+
+function friendlyAuthError(error: unknown, mode: AuthMode): string {
+  const message = error instanceof Error ? error.message : '';
+  const normalized = message.toLocaleLowerCase();
+  if (/invalid login credentials|invalid_credentials|email or password/.test(normalized)) {
+    return 'The email address or password did not match. Check your details or use Forgot password to reset it.';
+  }
+  if (/email not confirmed|email_not_confirmed/.test(normalized)) {
+    return 'Please confirm your email using the link Supabase sent you, then sign in again.';
+  }
+  if (/too many requests|rate limit|over_email_send_rate_limit/.test(normalized)) {
+    return 'There have been too many attempts. Wait a few minutes and try again.';
+  }
+  if (/user already registered|already registered|user already exists|email.*registered/.test(normalized)) {
+    return 'An account may already exist for this email. Try signing in or use Forgot password.';
+  }
+  if (/password should be|weak password|password.*too short/.test(normalized)) {
+    return 'That password does not meet the password rules configured in Supabase. Choose a longer, unique password and try again.';
+  }
+  if (/failed to fetch|networkerror|network request failed|load failed/.test(normalized)) {
+    return 'We could not reach Supabase right now. Check your connection and try again.';
+  }
+  if (/provider is not enabled|unsupported provider|provider.*disabled/.test(normalized)) {
+    return 'This social sign-in option is not available in Supabase right now. Choose another enabled method.';
+  }
+  if (/redirect.*(not allowed|invalid)|redirect_uri/.test(normalized)) {
+    return 'The sign-in return URL is not allowed by Supabase. Check the Site URL and Redirect URLs in Authentication settings.';
+  }
+  if (message) return message;
+  return mode === 'register' ? 'We could not create your account. Please check your details and try again.' : 'We could not sign you in. Please try again.';
+}
+
+function providerIcon(provider: AuthOAuthProviderName) {
+  if (provider === 'github') return <Github aria-hidden="true" />;
+  if (provider === 'google') return <Globe2 aria-hidden="true" />;
+  if (provider === 'azure' || provider === 'workos' || provider === 'keycloak') return <ShieldCheck aria-hidden="true" />;
+  return <LogIn aria-hidden="true" />;
+}
+
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
-  const { user, isAuthenticated, login, signup, loginWithProvider, resetPassword, logout, updateProfile } = useAuth();
+  const {
+    user,
+    isAuthenticated,
+    loading: authLoading,
+    isPasswordRecovery,
+    login,
+    signup,
+    loginWithProvider,
+    resetPassword,
+    updatePassword,
+    logout,
+    enabledOAuthProviders,
+    oauthProvidersLoading,
+    oauthProvidersError,
+    authCallbackError,
+    clearAuthCallbackError,
+  } = useAuth();
   const { updateCustomerDetails } = useCart();
 
-  const [mode, setMode] = useState<'signin' | 'register'>('signin');
+  const [mode, setMode] = useState<AuthMode>('signin');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [city, setCity] = useState('');
   const [password, setPassword] = useState('');
-  const [successNotice, setSuccessNotice] = useState<string | null>(null);
-  const [noticeType, setNoticeType] = useState<'success' | 'error' | 'info'>('info');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [recoveryPassword, setRecoveryPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showRecoveryPassword, setShowRecoveryPassword] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [noticeType, setNoticeType] = useState<NoticeType>('info');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const setMessage = (type: NoticeType, message: string) => {
+    setNoticeType(type);
+    setNotice(message);
+  };
+
+  useEffect(() => {
+    if (!authCallbackError) return;
+    setMessage('error', authCallbackError);
+    clearAuthCallbackError();
+  }, [authCallbackError, clearAuthCallbackError]);
+
+  const changeMode = (next: AuthMode) => {
+    setMode(next);
+    setNotice(null);
+    setPassword('');
+    setConfirmPassword('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (isSubmitting) return;
+    setNotice(null);
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setMessage('error', 'Enter your email address to continue.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setMessage('error', 'Enter a valid email address, such as you@example.com.');
+      return;
+    }
+
+    let normalizedPhone = phone.replace(/\D/g, '').slice(-10);
+    if (mode === 'register') {
+      const cleanName = name.trim().replace(/\s+/g, ' ');
+      if (cleanName.length < 2) {
+        setMessage('error', 'Enter your full name so we can prepare your customer profile.');
+        return;
+      }
+      if (!/^[6-9]\d{9}$/.test(normalizedPhone)) {
+        setMessage('error', 'Enter a valid 10-digit Indian mobile number starting with 6, 7, 8 or 9.');
+        return;
+      }
+      if (password.length < 8) {
+        setMessage('error', 'Choose a password with at least 8 characters.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setMessage('error', 'The passwords do not match. Please check both fields.');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
-    setSuccessNotice(null);
     try {
       if (mode === 'signin') {
-        await login(name, phone, email, password);
-        setNoticeType('success');
-        setSuccessNotice('Signed in successfully!');
+        await login('', '', cleanEmail, password);
+        setMessage('success', 'You are signed in securely.');
       } else {
-        const signupResult = await signup(name, phone, email, password);
-        updateCustomerDetails({ name, phone, email, city: city || 'Chennai' });
+        const cleanName = name.trim().replace(/\s+/g, ' ');
+        const signupResult = await signup(cleanName, normalizedPhone, cleanEmail, password, city.trim());
+        updateCustomerDetails({ name: cleanName, phone: normalizedPhone, email: cleanEmail, ...(city.trim() ? { city: city.trim() } : {}) });
+        setPassword('');
+        setConfirmPassword('');
         if (signupResult === 'confirmation-required') {
-          setNoticeType('info');
-          setSuccessNotice('If this email is being registered for the first time, check your inbox (and spam folder) for a verification link. Confirm your email before signing in. If you already have an account, use Sign In or Forgot password.');
           setMode('signin');
+          setNoticeType('info');
+          setNotice('Check your inbox (and spam folder) for a confirmation link from Supabase. Verify your email before signing in. For privacy, we show the same message whether or not the address was newly registered.');
         } else {
-          setNoticeType('success');
-          setSuccessNotice('Customer account created and signed in successfully.');
+          setMessage('success', 'Your customer account is ready. Welcome to RedThunder!');
         }
       }
-    } catch (err: any) {
-      setNoticeType('error');
-      setSuccessNotice(err?.message || 'Unable to continue.');
+    } catch (error) {
+      setMessage('error', friendlyAuthError(error, mode));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleGuestLogin = () => {
-    setNoticeType('info');
-    setSuccessNotice('Guest checkout is ready. You can continue without creating an account.');
-    onNavigate('cart');
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email.trim()) { setNoticeType('error'); setSuccessNotice('Enter your email address first.'); return; }
+  const handlePasswordUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSubmitting) return;
+    if (recoveryPassword.length < 8) {
+      setMessage('error', 'Use a new password with at least 8 characters.');
+      return;
+    }
+    setIsSubmitting(true);
+    setNotice(null);
     try {
-      await resetPassword(email);
-      setNoticeType('success');
-      setSuccessNotice('Password reset instructions have been sent to your email.');
-    } catch (err: any) {
-      setNoticeType('error');
-      setSuccessNotice(err?.message || 'Unable to send reset instructions.');
+      await updatePassword(recoveryPassword);
+      setRecoveryPassword('');
+      setShowRecoveryPassword(false);
+      setMessage('success', 'Your password has been updated by Supabase Auth.');
+    } catch (error) {
+      setMessage('error', friendlyAuthError(error, mode));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  return (
-    <div data-rtc-component="auth_card" className="py-12 max-w-xl mx-auto px-4 sm:px-6 space-y-8">
-      
-      {/* Title */}
-      <div className="text-center space-y-2">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 text-xs font-bold uppercase tracking-wider">
-          <User className="w-3.5 h-3.5" />
-          <span>Customer Account Portal</span>
-        </div>
-        <h1 className="font-display text-3xl font-black text-white dark:text-white light:text-stone-900 tracking-tight">
-          {isAuthenticated ? 'My Customer Account' : 'Sign In or Register'}
-        </h1>
-        <p className="text-xs sm:text-sm text-stone-400 dark:text-stone-400 light:text-stone-600 max-w-md mx-auto">
-          {isAuthenticated
-            ? 'Manage your saved delivery details and quick WhatsApp order profile.'
-            : 'Sign in to save your cart items, past orders history, and delivery details.'}
-        </p>
-      </div>
+  const handleProviderLogin = async (provider: AuthOAuthProviderName) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setNotice(null);
+    try {
+      await loginWithProvider(provider);
+      // Supabase normally redirects the browser. Keep a fallback status in case navigation is interrupted.
+      setMessage('info', `Connecting to ${enabledOAuthProviders.find((item) => item.id === provider)?.label || provider}…`);
+    } catch (error) {
+      setMessage('error', friendlyAuthError(error, mode));
+      setIsSubmitting(false);
+    }
+  };
 
-      {/* Main Card */}
-      <div className="bg-stone-900/90 dark:bg-stone-900/90 light:bg-white rounded-2xl border border-stone-800 dark:border-stone-800 light:border-stone-200 p-6 sm:p-8 shadow-2xl space-y-6">
-        
-        {successNotice && (
-          <div className={`p-3.5 rounded-xl border text-xs flex items-center gap-2 ${noticeType === 'error' ? 'bg-red-950/40 border-red-800/60 text-red-300' : noticeType === 'success' ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300' : 'bg-stone-800/70 border-stone-700 text-stone-200'}`} role={noticeType === 'error' ? 'alert' : 'status'} aria-live={noticeType === 'error' ? 'assertive' : 'polite'}>
-            <CheckCircle2 className={`w-4 h-4 shrink-0 ${noticeType === 'error' ? 'text-red-400' : noticeType === 'success' ? 'text-emerald-400' : 'text-stone-400'}`} />
-            <span>{successNotice}</span>
-          </div>
-        )}
+  const handleForgotPassword = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setMessage('error', 'Enter your email address first, then choose Forgot password.');
+      return;
+    }
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setNotice(null);
+    try {
+      await resetPassword(cleanEmail);
+      setMessage('success', 'If an account exists for that email, Supabase will send password-reset instructions. Check your inbox and spam folder.');
+    } catch (error) {
+      setMessage('error', friendlyAuthError(error, mode));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-        {isAuthenticated && user ? (
-          /* Profile & Logout View */
-          <div className="space-y-6">
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-stone-950 dark:bg-stone-950 light:bg-stone-50 border border-stone-800 dark:border-stone-800 light:border-stone-200">
-              <div className="w-14 h-14 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-display font-black text-2xl">
-                {user.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-display text-lg font-bold text-white dark:text-white light:text-stone-900 truncate">
-                  {user.name}
-                </h3>
-                <p className="text-xs text-stone-400 dark:text-stone-400 light:text-stone-600 font-mono">
-                  {user.phone}
-                </p>
-                {user.email && (
-                  <p className="text-xs text-stone-400 dark:text-stone-400 light:text-stone-600 truncate">
-                    {user.email}
-                  </p>
-                )}
-              </div>
-            </div>
+  const handleGuestCheckout = () => {
+    setMessage('info', 'You can browse and check out as a guest. Sign in is only needed for account-specific features.');
+    onNavigate('cart');
+  };
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <button
-                onClick={() => onNavigate('myorders')}
-                className="py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-center transition-colors cursor-pointer"
-              >
-                View My Orders
-              </button>
-
-              <button
-                onClick={() => onNavigate('cart')}
-                className="py-3 px-4 rounded-xl bg-stone-800 dark:bg-stone-800 light:bg-stone-100 hover:bg-stone-700 text-stone-200 dark:text-stone-200 light:text-stone-800 font-semibold text-center transition-colors cursor-pointer"
-              >
-                Open Current Cart
-              </button>
-            </div>
-
-            <div className="pt-4 border-t border-stone-800 dark:border-stone-800 light:border-stone-200 flex justify-between items-center">
-              <span className="text-xs text-stone-500">Finished for now?</span>
-              <button
-                onClick={() => {
-                  logout();
-                  setNoticeType('success');
-                  setSuccessNotice('Signed out successfully.');
-                }}
-                className="px-4 py-2 rounded-xl bg-red-950/60 hover:bg-red-900/60 text-red-400 text-xs font-bold border border-red-800/60 transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* Sign In / Register Tabs & Form */
-          <div className="space-y-6">
-            
-            {/* Tabs */}
-            <div className="flex p-1 bg-stone-950 dark:bg-stone-950 light:bg-stone-100 rounded-xl border border-stone-800 dark:border-stone-800 light:border-stone-200">
-              <button
-                onClick={() => setMode('signin')}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
-                  mode === 'signin'
-                    ? 'bg-amber-600 text-white shadow-sm'
-                    : 'text-stone-400 hover:text-white'
-                }`}
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => setMode('register')}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
-                  mode === 'register'
-                    ? 'bg-amber-600 text-white shadow-sm'
-                    : 'text-stone-400 hover:text-white'
-                }`}
-              >
-                New Customer Register
-              </button>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-              
-              {mode === 'register' && (
-                <div>
-                  <label className="block text-stone-300 dark:text-stone-300 light:text-stone-700 font-bold mb-1">
-                    Your Full Name <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Anand Kumar"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-stone-950 dark:bg-stone-950 light:bg-stone-50 border border-stone-800 dark:border-stone-800 light:border-stone-300 text-white dark:text-white light:text-stone-900 placeholder-stone-500 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-stone-300 dark:text-stone-300 light:text-stone-700 font-bold mb-1">
-                  Mobile / WhatsApp Number {mode === 'register' && <span className="text-red-400">*</span>}
-                </label>
-                <div className="relative">
-                  <Phone className="w-4 h-4 text-stone-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="tel"
-                    {...mode === 'register' ? { required: true } : {}}
-                    placeholder="e.g. 9876543210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-stone-950 dark:bg-stone-950 light:bg-stone-50 border border-stone-800 dark:border-stone-800 light:border-stone-300 text-white dark:text-white light:text-stone-900 placeholder-stone-500 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-stone-300 dark:text-stone-300 light:text-stone-700 font-bold mb-1">
-                  Email Address <span className="text-red-400">*</span>
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-stone-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. anand@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-stone-950 dark:bg-stone-950 light:bg-stone-50 border border-stone-800 dark:border-stone-800 light:border-stone-300 text-white dark:text-white light:text-stone-900 placeholder-stone-500 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              {mode === 'register' && (
-                <div>
-                  <label className="block text-stone-300 dark:text-stone-300 light:text-stone-700 font-bold mb-1">
-                    Your City / Town
-                  </label>
-                  <div className="relative">
-                    <MapPin className="w-4 h-4 text-stone-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      placeholder="e.g. Chennai, Madurai, Coimbatore"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-stone-950 dark:bg-stone-950 light:bg-stone-50 border border-stone-800 dark:border-stone-800 light:border-stone-300 text-white dark:text-white light:text-stone-900 placeholder-stone-500 focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-stone-300 dark:text-stone-300 light:text-stone-700 font-bold mb-1">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-stone-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-stone-950 dark:bg-stone-950 light:bg-stone-50 border border-stone-800 dark:border-stone-800 light:border-stone-300 text-white dark:text-white light:text-stone-900 placeholder-stone-500 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              {mode === 'signin' && (
-                <button type="button" onClick={handleForgotPassword} className="text-xs text-amber-400 hover:text-amber-300 underline">Forgot password?</button>
-              )}
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                aria-busy={isSubmitting}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 disabled:opacity-60 disabled:cursor-wait text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-red-950/40 transition-all cursor-pointer mt-2"
-              >
-                {isSubmitting ? 'Please wait…' : mode === 'signin' ? 'Sign In Now' : 'Create My Account'}
-              </button>
-
-            </form>
-
-            <div className="pt-4 grid grid-cols-3 gap-2">
-              <button type="button" onClick={() => loginWithProvider('google')} className="py-2 rounded-lg border border-stone-700 text-xs text-stone-200 hover:border-amber-500">Google</button>
-              <button type="button" onClick={() => loginWithProvider('apple')} className="py-2 rounded-lg border border-stone-700 text-xs text-stone-200 hover:border-amber-500">Apple</button>
-              <button type="button" onClick={() => loginWithProvider('azure')} className="py-2 rounded-lg border border-stone-700 text-xs text-stone-200 hover:border-amber-500">Microsoft</button>
-            </div>
-
-            <div className="pt-2 text-center">
-              <button
-                onClick={handleGuestLogin}
-                className="text-amber-500 hover:text-amber-400 font-semibold text-xs underline cursor-pointer"
-              >
-                Or Continue as Guest (1-Click Instant Sign In)
-              </button>
-            </div>
-
-          </div>
-        )}
-
-      </div>
-
+  const notices = notice ? (
+    <div className={`rt-auth-alert rt-auth-alert-${noticeType}`} role={noticeType === 'error' ? 'alert' : 'status'} aria-live={noticeType === 'error' ? 'assertive' : 'polite'}>
+      {noticeType === 'error' ? <AlertCircle aria-hidden="true" /> : noticeType === 'success' ? <CheckCircle2 aria-hidden="true" /> : <Mail aria-hidden="true" />}
+      <span>{notice}</span>
     </div>
+  ) : null;
+
+  return (
+    <section className="rt-auth-page" data-rtc-component="auth_card" aria-labelledby="auth-page-title">
+      <div className="rt-auth-layout">
+        <aside className="rt-auth-story" aria-label="RedThunder customer benefits">
+          <img className="rt-auth-story-image" src="/images/storefront/hero-desktop.jpg" alt="" aria-hidden="true" />
+          <div className="rt-auth-story-content">
+            <div className="rt-auth-brand-mark" aria-hidden="true">RT</div>
+            <p className="rt-auth-eyebrow">REDTHUNDER CRACKERS · SIVAKASI</p>
+            <h2>Celebrations start with a better way to shop.</h2>
+            <p className="rt-auth-story-copy">Sign in once to keep your orders, delivery details and favourites together.</p>
+            <ul className="rt-auth-benefits">
+              <li><PackageCheck aria-hidden="true" /><span>Track your orders in one place</span></li>
+              <li><ShoppingBag aria-hidden="true" /><span>Keep your shopping journey organised</span></li>
+              <li><ShieldCheck aria-hidden="true" /><span>Passwords and sign-in are handled by Supabase Auth</span></li>
+            </ul>
+            <div className="rt-auth-story-footer"><BadgeCheck aria-hidden="true" /> Factory-direct catalogue · Secure account access</div>
+          </div>
+        </aside>
+
+        <div className="rt-auth-panel-wrap">
+          <div className="rt-auth-panel">
+            <div className="rt-auth-panel-heading">
+              <div className="rt-auth-heading-icon"><UserRound aria-hidden="true" /></div>
+              <div>
+                <p className="rt-auth-kicker">CUSTOMER ACCOUNT</p>
+                <h1 id="auth-page-title">{isPasswordRecovery ? 'Set a new password' : authLoading ? 'Checking your session' : isAuthenticated ? 'Your account' : mode === 'signin' ? 'Welcome back' : 'Create your account'}</h1>
+                <p>{isPasswordRecovery ? 'Choose a new password to secure your account.' : authLoading ? 'We are verifying your Supabase session.' : isAuthenticated ? 'Your account is connected and ready.' : mode === 'signin' ? 'Sign in to pick up where you left off.' : 'Create one account to keep your orders and delivery details together.'}</p>
+              </div>
+            </div>
+
+            {notices}
+
+            {authLoading ? (
+              <div className="rt-auth-loading" role="status"><LoaderCircle className="animate-spin" aria-hidden="true" /><span>Verifying account…</span></div>
+            ) : isPasswordRecovery ? (
+              <form onSubmit={handlePasswordUpdate} className="rt-auth-form">
+                <label className="rt-auth-field"><span>New password</span><div className="rt-auth-input-wrap"><LockKeyhole aria-hidden="true" /><input className={inputClass} type={showRecoveryPassword ? 'text' : 'password'} autoComplete="new-password" required minLength={8} value={recoveryPassword} onChange={(event) => setRecoveryPassword(event.target.value)} placeholder="At least 8 characters" aria-describedby="recovery-password-help" /><button type="button" className="rt-auth-eye" onClick={() => setShowRecoveryPassword((shown) => !shown)} aria-label={showRecoveryPassword ? 'Hide password' : 'Show password'}>{showRecoveryPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}</button></div><small id="recovery-password-help">Use a unique password with at least 8 characters.</small></label>
+                <button className="rt-auth-primary" type="submit" disabled={isSubmitting || recoveryPassword.length < 8} aria-busy={isSubmitting}>{isSubmitting ? <><LoaderCircle className="animate-spin" /> Updating…</> : <>Update password <ArrowRight aria-hidden="true" /></>}</button>
+                <button type="button" className="rt-auth-text-button" onClick={() => { window.history.replaceState({}, document.title, '/login'); window.location.assign('/login'); }}>Return to sign in</button>
+              </form>
+            ) : isAuthenticated && user ? (
+              <div className="rt-auth-account-view">
+                <div className="rt-auth-user-summary"><div className="rt-auth-avatar">{(user.name || user.email || 'U').trim().charAt(0).toUpperCase()}</div><div><strong>{user.name || 'Customer'}</strong><span>{user.email}</span>{user.phone && <span>{user.phone}</span>}</div><BadgeCheck aria-label="Signed in" /></div>
+                <button className="rt-auth-primary" onClick={() => onNavigate('myorders')}>View my orders <ArrowRight aria-hidden="true" /></button>
+                <button className="rt-auth-secondary" onClick={() => onNavigate('cart')}>Open my cart <ShoppingBag aria-hidden="true" /></button>
+                <button className="rt-auth-text-button rt-auth-signout" onClick={async () => { setIsSubmitting(true); try { await logout(); setMessage('success', 'You have signed out.'); } catch { setMessage('info', 'Your local session has been cleared.'); } finally { setIsSubmitting(false); } }} disabled={isSubmitting}><LogOut aria-hidden="true" /> Sign out</button>
+              </div>
+            ) : (
+              <>
+                <div className="rt-auth-mode-switch" role="tablist" aria-label="Account access type">
+                  <button type="button" role="tab" aria-selected={mode === 'signin'} className={mode === 'signin' ? 'is-active' : ''} onClick={() => changeMode('signin')}><LogIn aria-hidden="true" /> Sign in</button>
+                  <button type="button" role="tab" aria-selected={mode === 'register'} className={mode === 'register' ? 'is-active' : ''} onClick={() => changeMode('register')}><UserRoundPlus aria-hidden="true" /> Create account</button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="rt-auth-form" noValidate>
+                  {mode === 'register' && <label className="rt-auth-field"><span>Full name <b>*</b></span><div className="rt-auth-input-wrap"><UserRound aria-hidden="true" /><input className={inputClass} type="text" autoComplete="name" required minLength={2} maxLength={120} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your full name" /></div></label>}
+
+                  <label className="rt-auth-field"><span>Email address <b>*</b></span><div className="rt-auth-input-wrap"><Mail aria-hidden="true" /><input className={inputClass} type="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} required maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></div></label>
+
+                  {mode === 'register' && <label className="rt-auth-field"><span>Mobile / WhatsApp number <b>*</b></span><div className="rt-auth-input-wrap"><Phone aria-hidden="true" /><input className={inputClass} type="tel" autoComplete="tel" inputMode="tel" required maxLength={18} value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="10-digit mobile number" aria-describedby="phone-help" /></div><small id="phone-help">Use an Indian mobile number. You can include +91.</small></label>}
+
+                  {mode === 'register' && <label className="rt-auth-field"><span>City / town <small>(optional)</small></span><div className="rt-auth-input-wrap"><MapPin aria-hidden="true" /><input className={inputClass} type="text" autoComplete="address-level2" maxLength={100} value={city} onChange={(event) => setCity(event.target.value)} placeholder="e.g. Chennai" /></div></label>}
+
+                  <label className="rt-auth-field"><span>Password <b>*</b></span><div className="rt-auth-input-wrap"><LockKeyhole aria-hidden="true" /><input className={inputClass} type={showPassword ? 'text' : 'password'} autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} required minLength={mode === 'register' ? 8 : 1} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === 'signin' ? 'Enter your password' : 'At least 8 characters'} /><button type="button" className="rt-auth-eye" onClick={() => setShowPassword((shown) => !shown)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}</button></div>{mode === 'register' && <small>Choose a unique password with at least 8 characters.</small>}</label>
+
+                  {mode === 'register' && <label className="rt-auth-field"><span>Confirm password <b>*</b></span><div className="rt-auth-input-wrap"><KeyRound aria-hidden="true" /><input className={inputClass} type={showConfirmPassword ? 'text' : 'password'} autoComplete="new-password" required minLength={8} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Enter the same password again" /><button type="button" className="rt-auth-eye" onClick={() => setShowConfirmPassword((shown) => !shown)} aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}>{showConfirmPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}</button></div>{confirmPassword && <small className={password === confirmPassword ? 'rt-auth-match-ok' : 'rt-auth-match-error'}>{password === confirmPassword ? 'Passwords match' : 'Passwords do not match yet'}</small>}</label>}
+
+                  {mode === 'signin' && <div className="rt-auth-forgot-row"><button type="button" onClick={() => void handleForgotPassword()} disabled={isSubmitting} className="rt-auth-text-button">Forgot password?</button></div>}
+
+                  <button className="rt-auth-primary" type="submit" disabled={isSubmitting || !email.trim() || !password || (mode === 'register' && (!name.trim() || !phone.trim() || password.length < 8 || password !== confirmPassword))} aria-busy={isSubmitting}>{isSubmitting ? <><LoaderCircle className="animate-spin" /> Please wait…</> : mode === 'signin' ? <>Sign in securely <ArrowRight aria-hidden="true" /></> : <>Create my account <ArrowRight aria-hidden="true" /></>}</button>
+                </form>
+
+                {(oauthProvidersLoading || enabledOAuthProviders.length > 0 || oauthProvidersError) && <div className="rt-auth-oauth"><div className="rt-auth-divider"><span>Or continue with</span></div>{oauthProvidersLoading ? <p className="rt-auth-muted" role="status"><LoaderCircle className="animate-spin" /> Checking available providers…</p> : enabledOAuthProviders.length ? <div className="rt-auth-provider-grid">{enabledOAuthProviders.map((provider) => <button type="button" key={provider.id} onClick={() => void handleProviderLogin(provider.id)} disabled={isSubmitting} aria-busy={isSubmitting}>{providerIcon(provider.id)}<span>Continue with {provider.label}</span></button>)}</div> : <p className="rt-auth-muted" role="status">{oauthProvidersError ? 'We could not load social sign-in options. Refresh the page or try email sign-in.' : 'No social sign-in providers are currently enabled.'}</p>}</div>}
+
+                <div className="rt-auth-guest"><span>Just browsing?</span><button type="button" onClick={handleGuestCheckout}>Continue as guest <ArrowRight aria-hidden="true" /></button></div>
+                <p className="rt-auth-privacy"><ShieldCheck aria-hidden="true" /> Your password is sent directly to Supabase Auth. It is never stored in your customer profile.</p>
+              </>
+            )}
+          </div>
+          <p className="rt-auth-help">Need help with your account? <button type="button" onClick={() => onNavigate('contact')}>Contact customer support</button></p>
+        </div>
+      </div>
+    </section>
   );
 };

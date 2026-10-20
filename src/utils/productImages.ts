@@ -16,16 +16,8 @@ export const CRACKER_IMAGES = {
   heroCrackers: '/images/redthunder_hero_crackers_1791297525760.jpg',
 };
 
-/**
- * Returns the exact tailored image for any cracker in the catalog.
- * Prioritizes custom uploaded image if available, otherwise maps precisely
- * based on the cracker's specific category, name keywords, and serial number.
- */
-export function getExactProductImage(product: Product): string {
-  if (product.imageUrl && product.imageUrl.trim().length > 0) {
-    return product.imageUrl;
-  }
-
+/** Resolve bundled, category-aware artwork used only when a product has no usable database image. */
+export function getFallbackProductImage(product: Product): string {
   const name = (product.name || '').toLowerCase();
   const cat = (product.category || '').toLowerCase();
 
@@ -157,4 +149,10 @@ export function getExactProductImage(product: Product): string {
 
   // Fallback
   return CRACKER_IMAGES.potsAndFountains;
+}
+
+/** Prefer the image stored on the live database product; the bundled art is only a fallback. */
+export function getExactProductImage(product: Product): string {
+  const databaseImage = product.imageUrl?.trim();
+  return databaseImage || getFallbackProductImage(product);
 }

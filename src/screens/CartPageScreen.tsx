@@ -3,7 +3,7 @@ import { AlertCircle, ArrowRight, Check, Copy, FileText, Mail, MapPin, MessageCi
 import { useCart } from '../context/CartContext';
 import type { PlacedOrder } from '../context/CartContext';
 import { useStore } from '../context/StoreContext';
-import { getExactProductImage } from '../utils/productImages';
+import { ProductImage } from '../components/ProductImage';
 import { useAuth } from '../context/AuthContext';
 import { formatWhatsAppMessage, getWhatsAppUrl, openWhatsAppAfter } from '../utils/whatsapp';
 import { useToast } from '../context/ToastContext';
@@ -125,7 +125,7 @@ export const CartPageScreen: React.FC<CartPageScreenProps> = ({ onNavigate, onOp
                   return (
                     <article className="rt-cart-item" key={product.id}>
                       <button className="rt-cart-item-image" onClick={() => { setShopIntent({ type: 'search', value: product.name }); onNavigate('products'); }} aria-label={`View ${product.name}`}>
-                        <img loading="lazy" src={getExactProductImage(product)} alt="" />
+                        <ProductImage product={product} loading="lazy" alt="" />
                       </button>
                       <div className="rt-cart-item-main">
                         <span>{product.category}</span>

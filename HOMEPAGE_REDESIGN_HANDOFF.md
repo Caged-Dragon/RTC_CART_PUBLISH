@@ -47,14 +47,25 @@ npm run build
 npm run lint
 ```
 
-Do not place a service-role key in browser environment variables. The archive intentionally excludes `.env.local` and other secrets.
+Do not place a service-role key in browser environment variables. This handoff archive includes `.env.local` from your supplied CART project so it is immediately configured to the verified project; it contains the public publishable client key only. Keep `.env.local` excluded from source-control commits.
 
 ## Verification performed in the packaging environment
 
-- TypeScript/TSX syntax transpile check on all modified TypeScript files: passed.
-- `npm run build`: blocked because the local dependency installation is incomplete (`vite: not found`).
-- `npm run lint`: blocked because required `@types/*` and React type packages are missing from the incomplete `node_modules` directory.
-- Live Supabase read verification: not completed. The URL configured in the supplied local environment references a project that did not match the projects available to the connected Supabase tooling, and direct database access from this environment failed. No database writes were attempted.
-- Browser viewport/interactions: not executed in a running browser because the app dependencies could not be installed in the current environment.
+- TypeScript/TSX transpile check on all 62 source files: passed; no syntax diagnostics. Relative-import and local image-reference checks passed.
+- `npm test`: passed (SWR cache regression test).
+- `npm run lint` and the Vite build: not verified because React/Vite and other package dependencies are absent from this sandbox; install them locally and rerun.
+- Supabase management access is now verified against the same project reference in `.env.local`: `ypmiinmkyvzdpakbkers` (`RtCrackers Cart`, `ap-south-1`). Live read-only SQL checks confirmed the homepage data sources and row counts; see `SUPABASE_CONNECTION_AUDIT.md`.
+- Public REST smoke test: `npm run check:db` was added, but outbound HTTP requests are blocked in this sandbox, so run it from your local development network.
+- Browser viewport/interactions: not executed in a running browser in this environment. No database writes were attempted.
 
-After installing dependencies and confirming the target Supabase URL/public anon key, run the build and lint commands above, then verify the homepage at phone, tablet, and desktop sizes against the live data.
+After installing dependencies, run `npm ci`, `npm run check:db`, `npm run lint`, `npm test`, and `npm run build`, then verify phone, tablet, and desktop layouts against the live catalogue.
+
+
+## Reference asset integration update — 20 October 2026
+
+- Added `public/images/storefront/` assets from the supplied RedThunder reference: desktop/mobile hero, logo, category tiles, combo visuals and budget decoration.
+- The hero uses the matching baked-in reference artwork only when no active database banner exists; active promotional banner records retain their existing navigation/content behavior. Accessible invisible hit areas keep the reference-art Shop Now and WhatsApp calls to action interactive.
+- Categories continue to prioritize live uploaded images. Bundled visual fallbacks are used when uploads are missing, and broken uploaded URLs retry the local image before hiding the failed image.
+- Homepage order keeps Category, Best Sellers, Budget and Combos in the reference order; optional configured live offers follow Combos and remain available before the How to Order/service content.
+- Updated shared branding and normalized WhatsApp links across the homepage, navigation, footer, cart drawer and contact page. No routes, product/cart logic, Supabase contracts, database rows or migrations were removed or changed.
+- Verification: TypeScript/TSX syntax transpile passed for 61 source files; CSS parsing reported no syntax errors; 17 local storefront image references resolved; `node --test tests/swr.test.cjs` passed. Full `npm run lint` / `npm run build` could not be completed in this sandbox because dependency installation timed out and the supplied tree lacks React/Vite packages; rerun after `npm ci` in a network-enabled environment.

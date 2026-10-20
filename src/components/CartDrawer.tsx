@@ -3,13 +3,15 @@ import { ArrowRight, MessageCircle, Minus, Plus, ShoppingBag, Trash2, X } from '
 import { useCart } from '../context/CartContext';
 import { useProducts } from '../context/ProductsContext';
 import { useStore } from '../context/StoreContext';
-import { getExactProductImage } from '../utils/productImages';
+import { ProductImage } from './ProductImage';
 import { CartRecommendations } from './CartRecommendations';
+import { getWhatsAppHref } from '../utils/contactLinks';
 
 interface CartDrawerProps { onOpenCheckout: () => void; onOpenInvoice: () => void; }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ onOpenCheckout, onOpenInvoice }) => {
   const { storeInfo, merchant } = useStore();
+  const whatsappHref = getWhatsAppHref(storeInfo.phone);
   const { products } = useProducts();
   const { cart, isCartOpen, setIsCartOpen, updateQuantity, removeFromCart, clearCart, totalItems, totalBoxes, subtotal } = useCart();
   if (!isCartOpen) return null;
@@ -30,7 +32,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOpenCheckout, onOpenIn
               <div className="rt-drawer-progress"><div><span>{subtotal >= merchant.minimumOrderValue ? 'Minimum order reached' : `₹${Math.max(0, merchant.minimumOrderValue - subtotal).toLocaleString('en-IN')} to minimum order`}</span><strong>{Math.round(minimumProgress)}%</strong></div><i><b style={{width:`${minimumProgress}%`}} /></i></div>
               {cart.map(({ product, quantity }) => (
                 <article key={product.id} className="rt-drawer-item">
-                  <img loading="lazy" src={getExactProductImage(product)} alt="" />
+                  <ProductImage product={product} loading="lazy" alt="" />
                   <div><span>{product.category}</span><h3>{product.name}</h3><small>₹{product.rate.toLocaleString('en-IN')} × {quantity}</small></div>
                   <div className="rt-drawer-item-actions"><strong>₹{(product.rate * quantity).toLocaleString('en-IN')}</strong><div className="rt-qty-control"><button onClick={() => updateQuantity(product.id, quantity - 1)} aria-label="Decrease"><Minus /></button><span>{quantity}</span><button onClick={() => updateQuantity(product.id, quantity + 1)} aria-label="Increase"><Plus /></button></div><button className="rt-remove-btn" onClick={() => removeFromCart(product.id)} aria-label="Remove item"><Trash2 /></button></div>
                 </article>
@@ -39,7 +41,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ onOpenCheckout, onOpenIn
             </>
           )}
         </div>
-        {!!cart.length && <div className="rt-drawer-footer"><div className="rt-drawer-value-grid"><div><span>Units</span><strong>{totalBoxes}</strong></div><div><span>Varieties</span><strong>{totalItems}</strong></div>{savings > 0 && <div><span>You save</span><strong>₹{savings.toLocaleString('en-IN')}</strong></div>}</div><div className="rt-drawer-total"><span>Subtotal</span><strong>₹{subtotal.toLocaleString('en-IN')}</strong></div><button className="rt-btn rt-btn-whatsapp rt-full-btn" onClick={onOpenCheckout}>Checkout / WhatsApp Order <ArrowRight /></button><button className="rt-drawer-secondary" onClick={onOpenInvoice}>View / Print Bill</button><a href={`https://wa.me/${storeInfo.phone}`} target="_blank" rel="noreferrer"><MessageCircle /> Need help? Chat on WhatsApp</a></div>}
+        {!!cart.length && <div className="rt-drawer-footer"><div className="rt-drawer-value-grid"><div><span>Units</span><strong>{totalBoxes}</strong></div><div><span>Varieties</span><strong>{totalItems}</strong></div>{savings > 0 && <div><span>You save</span><strong>₹{savings.toLocaleString('en-IN')}</strong></div>}</div><div className="rt-drawer-total"><span>Subtotal</span><strong>₹{subtotal.toLocaleString('en-IN')}</strong></div><button className="rt-btn rt-btn-whatsapp rt-full-btn" onClick={onOpenCheckout}>Checkout / WhatsApp Order <ArrowRight /></button><button className="rt-drawer-secondary" onClick={onOpenInvoice}>View / Print Bill</button><a href={whatsappHref || '/contact'} target={whatsappHref ? '_blank' : undefined} rel={whatsappHref ? 'noreferrer' : undefined}><MessageCircle /> Need help? Chat on WhatsApp</a></div>}
       </aside>
     </div>
   );

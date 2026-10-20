@@ -3,13 +3,26 @@
 React 19 + Vite + Tailwind storefront backed by Supabase (project `RTCrackers`). Orders are booked in the
 database and then sent to the Sivakasi desk on WhatsApp (no online payment).
 
+
+## Authentication and category navigation update
+
+- The account screen uses Supabase Auth for password sign-in, account creation, password reset/update and currently enabled OAuth providers. It includes email/phone validation, password confirmation and visibility controls, clear error states, recovery messaging, session verification/refresh, and safe PKCE callback handling.
+- The homepage category section is a concise preview. `/categories` lists all active categories from Supabase with live product counts and a category search. Selecting a category opens `/products?category=...`; the chosen filter is shareable and is restored on refresh/back/forward navigation.
+- The app uses the existing `public.product_categories` and `public.products` records. No new category/product seed data is required.
+- See `LOGIN_AND_CATEGORY_UX_UPDATE.md` for changes and validation details.
+
 ## Run locally
-```
-npm install
-cp .env.example .env.local     # set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY
+```bash
+cp .env.example .env.local
+# Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.local.
+npm ci
+npm test
+npm run lint
+npm run build
+npm run check:db                # read-only Supabase REST smoke test
 npm run dev
 ```
-`npm run lint` type-checks, `npm run build` creates `dist/`.
+`.env.local` is deliberately excluded from handoff archives. Use the browser-safe publishable key only; never place a service-role key in a VITE_ variable. `npm run lint` type-checks, `npm run build` creates `dist/`, and `npm test` runs authentication, navigation and SWR regression tests.
 
 ## What lives where
 - `src/context/*` – data providers (products, categories, store + merchant rules, auth, cart, theme, toasts)
@@ -36,14 +49,14 @@ reviews, and calls the existing `create_order` RPC. The Supabase schema is share
 here alters it. `supabase/migrations/*` is optional and must be reviewed against every site before it is run.
 
 ## RedThunder 3.0 UI architecture
-The storefront UI is frontend-only and is intentionally isolated from the live database contracts. Theme values are read from the existing `theme_page_settings` table using `website_key=cart`; the frontend does not create, update, migrate or delete theme/data tables. New UI screens such as `/about` and `/contact` reuse the existing `cart/home` theme row so they remain consistent with database-controlled styling.
+The storefront is a frontend application integrated directly with the existing live Supabase data contracts. Catalogue, business configuration, offers, combos, curated picks, and theme values are read from the existing tables/views; the frontend update does not create, update, migrate, or delete production data tables. New UI screens such as `/about` and `/contact` reuse the existing `cart/home` theme row so they remain consistent with database-controlled styling.
 
 The product detail URL is shareable as `/product/<product-id>` while the existing `/products?product=<id>` form remains supported for backwards compatibility.
 
 
 ### Combo packs
 
-The storefront includes 24 predefined combo recipes. They are frontend selection rules that dynamically resolve against the live `products` catalogue; they do not create or update Supabase data.
+Combo packs are read from the existing `combo_pack_catalogue` database view filtered by `website_key=cart`; item rates and calculated combo prices come from live `products` and the view. The homepage budget cards are derived from the active combo records' `budget_tier` and calculated prices. No duplicate recipe data is hardcoded into the homepage.
 
 ## Transactional email delivery
 
@@ -55,6 +68,41 @@ Supported automatic flows in this codebase:
 - Customer quotation emails from the Email Quotation screen.
 - An `order_status` mail action is included in the server function for order-lifecycle integrations.
 
+## Reference-matched homepage visuals
+
+- `public/images/storefront/` contains the responsive desktop/mobile hero artwork and category/combo reference assets used by the latest homepage refresh.
+- Active banner records and uploaded category images from the existing database take precedence over bundled fallbacks.
+- Category tiles recover to local reference imagery if a configured image URL fails, then fall back to a catalogue image where available.
+- WhatsApp links normalize formatted phone numbers and fall back to the Contact screen if no usable number is configured.
+- All existing storefront routes, account/order flows, cart behavior, live catalogue data, and combo detail/add-to-cart behavior remain in the React app.
+
 ## Best Sellers storefront page
 
 The customer-facing Best Sellers route is `/best-sellers`. The home page features approximately 55% of the same curated/catalogue-marked best-seller collection; the dedicated page exposes search, category filtering, and sorting. See `BEST_SELLERS_HANDOFF.md` for behaviour and verification notes.
+
+
+## Verified Supabase connection and homepage data
+
+- The verified project reference is `ypmiinmkyvzdpakbkers` (`RtCrackers Cart`, `ap-south-1`). Set the project URL and browser-safe publishable key in a local `.env.local`; this private environment file is not packaged.
+- The current homepage reads active product rows, active categories, curated `homepage_customer_picks`, active `combo_pack_catalogue` rows, current offer banners/offers, company profile, merchant settings, and the active `theme_page_settings` row for `website_key=cart`.
+- Run `npm run check:db` locally to validate public REST reads from your machine. It performs only SELECT requests and never modifies live data.
+- The database currently has no `image_url` for active categories and combo packs. The UI therefore prefers any configured database image URL and uses bundled reference/category artwork only as a fallback. Product images also prefer their database URL fields.
+- Static UI copy and decorative icons remain frontend presentation because the current schema does not have a dedicated editable content field for every label. Product names/prices/stock, categories, curated picks, banner content, combo data/prices, company details, merchant rules, and page theme values are read from Supabase.
+- The connected Supabase management interface successfully queried the live database. The sandbox used for this handoff could not make outbound REST HTTP requests, so the included `check:db` command still needs to be run from your network before claiming a browser-to-REST smoke test passed.
+- No production schema, product, price, banner, combo, or other database records were written or changed as part of this UI update.
+
+## Native Supabase customer authentication
+
+Customer signup, email/password login, email-confirmation handling, password recovery/password updates, OAuth redirects, token refresh, and server-side logout use Supabase Auth endpoints. Credentials and password validation are never handled by `public.users`; that table stores only the linked customer profile. The database trigger `private.handle_new_auth_user` links/creates the profile after Supabase Auth inserts an identity. See `AUTH_NATIVE_SUPABASE_HANDOFF.md` for the live-project audit and dashboard setup requirements.
+
+## OAuth login
+
+OAuth buttons are discovered from enabled provider flags returned by Supabase Auth settings. The login uses authorization-code + PKCE and exchanges the callback code through Supabase Auth. See [OAUTH_LOGIN_SETUP.md](./OAUTH_LOGIN_SETUP.md) for provider configuration and callback URLs.
+
+
+## Login and category navigation update
+
+- The login experience has separate Sign in / Create account modes; password visibility toggles, confirmation matching, name/email/Indian mobile validation, recovery/confirmation guidance, accessible status messages and provider buttons based on Supabase Auth settings.
+- On application startup, a stored Supabase session is validated against Auth; expiring tokens are refreshed and storage changes are synchronized across tabs. Customer passwords remain exclusively managed by Supabase Auth.
+- The homepage shows a preview of active categories; View All Categories opens `/categories`, which displays the full active category list and counts derived from live products. Category cards open `/products?category=<category-name>`; the filter is case-insensitive, shareable and preserved across refresh/back-forward navigation.
+- See `LOGIN_AND_CATEGORY_UX_UPDATE.md` for details and validation notes.

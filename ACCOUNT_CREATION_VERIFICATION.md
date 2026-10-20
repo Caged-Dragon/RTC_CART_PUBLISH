@@ -1,5 +1,7 @@
 # RT Crackers account creation verification
 
+**Updated 2026-10-20:** The current implementation uses Supabase Auth endpoints for signup, password login, email confirmation, password reset/update, OAuth, token refresh, and server-side logout. See `AUTH_NATIVE_SUPABASE_HANDOFF.md` for the current source-of-truth design. The UI coordinates requests and profile display only; it does not create or validate credentials in `public.users`.
+
 ## Application changes
 
 - The header now includes a `My Orders` button beside `Cart` on desktop and mobile. It opens `/my-orders` and visually marks the route as active.
@@ -13,7 +15,7 @@
 - `auth.users`: 4 records; 4 have confirmed email addresses.
 - `public.users`: 4 customer profiles; all 4 are linked to an Auth user.
 - No Auth user currently lacks a linked `public.users` profile.
-- An `AFTER INSERT` trigger on `auth.users` invokes `private.handle_new_auth_user()`. Its inspected definition links or creates the customer profile using the submitted `full_name` and `phone` metadata. RLS is enabled on `public.users`.
+- An `AFTER INSERT` trigger on `auth.users` invokes `private.handle_new_auth_user()`. Its inspected definition links or creates the customer profile using submitted metadata (`full_name`, `phone`, and, after the 2026-10-20 additive migration, `city`). RLS is enabled on `public.users`.
 - One signup-related event in the last 24 hours was classified as `user_repeated_signup` with HTTP 200. This represents a repeated signup request; it is not evidence of a newly created account.
 
 ## What remains unverified

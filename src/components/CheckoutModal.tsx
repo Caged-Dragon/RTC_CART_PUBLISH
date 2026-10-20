@@ -37,7 +37,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const handleCopy = async () => {
     try {
       const saved = await recordAndSync();
-      const text = formatWhatsAppMessage(saved.items, saved.customer, saved.subtotal, saved.orderId);
+      const text = formatWhatsAppMessage(saved.items, saved.customer, saved.subtotal, saved.orderId, STORE_INFO);
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
@@ -50,13 +50,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     e.preventDefault();
     try {
       const saved = await recordAndSync();
-      window.open(getWhatsAppUrl(saved.items, saved.customer, saved.subtotal, saved.orderId), '_blank', 'noopener,noreferrer');
+      window.open(getWhatsAppUrl(saved.items, saved.customer, saved.subtotal, saved.orderId, STORE_INFO), '_blank', 'noopener,noreferrer');
     } catch (e: any) {
       alert(e.message || 'Unable to place order.');
     }
   };
 
-  const whatsappUrl = getWhatsAppUrl(cart, customerDetails, subtotal, orderId);
+  const whatsappUrl = getWhatsAppUrl(cart, customerDetails, subtotal, orderId, STORE_INFO);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">

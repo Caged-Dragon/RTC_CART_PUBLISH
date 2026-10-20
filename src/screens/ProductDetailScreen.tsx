@@ -2,7 +2,7 @@ import React from 'react';
 import { ArrowLeft, CheckCircle2, Minus, Plus, ShoppingCart, ShieldCheck, Truck } from 'lucide-react';
 import { Product } from '../data/products';
 import { useCart } from '../context/CartContext';
-import { getExactProductImage } from '../utils/productImages';
+import { ProductImage } from '../components/ProductImage';
 import { ProductCard } from '../components/ProductCard';
 
 interface ProductDetailScreenProps {
@@ -15,7 +15,6 @@ interface ProductDetailScreenProps {
 export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ product, related, onBack, onSelectRelated }) => {
   const { getItemQuantity, addToCart, updateQuantity, setIsCartOpen } = useCart();
   const quantity = getItemQuantity(product.id);
-  const image = getExactProductImage(product);
   const liveProduct = product as Product & { mrpRate?: number };
   const mrpRate = Number(liveProduct.mrpRate || 0);
   const hasDiscount = mrpRate > product.rate;
@@ -32,7 +31,7 @@ export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ produc
         <button className="rt-back-link" onClick={onBack} aria-label="Back to all products"><ArrowLeft /> Back to products</button>
         <div className="rt-detail-layout">
           <div className="rt-detail-gallery">
-            <div className="rt-detail-main-image"><img width={900} height={900} src={image} alt={product.name} decoding="async" fetchPriority="high" /></div>
+            <div className="rt-detail-main-image"><ProductImage product={product} width={900} height={900} decoding="async" fetchPriority="high" /></div>
             <div className="rt-detail-trust"><span><ShieldCheck /> Genuine factory stock</span><span><Truck /> Sivakasi dispatch</span><span><CheckCircle2 /> Live catalogue price</span></div>
           </div>
           <div className="rt-detail-content">

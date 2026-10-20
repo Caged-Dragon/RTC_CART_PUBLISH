@@ -4,6 +4,7 @@ import type { ScreenId } from './Navbar';
 import { useComboPacks, type ComboPack } from '../context/ComboPacksContext';
 import { useCart } from '../context/CartContext';
 import { getExactProductImage } from '../utils/productImages';
+import { ProductImage } from './ProductImage';
 
 interface ComboPacksSectionProps {
   onNavigate?: (screen: ScreenId) => void;
@@ -12,20 +13,30 @@ interface ComboPacksSectionProps {
 
 const money = (value: number) => `₹${Math.round(value).toLocaleString('en-IN')}`;
 
+const getReferenceComboImage = (comboName: string, budgetTier?: string | null) => {
+  const words = `${comboName} ${budgetTier || ''}`.toLocaleLowerCase();
+  if (words.includes('mega')) return '/images/storefront/combo-mega.jpg';
+  if (words.includes('grand')) return '/images/storefront/combo-grand.jpg';
+  if (words.includes('premium')) return '/images/storefront/combo-premium.jpg';
+  if (words.includes('family') || words.includes('starter')) return '/images/storefront/combo-family.jpg';
+  return '';
+};
+
 function comboCartSets(combo: ComboPack, getItemQuantity: (id: number) => number) {
   if (!combo.items.length) return 0;
   return Math.min(...combo.items.map((item) => Math.floor(getItemQuantity(item.product.id) / item.quantity)));
 }
 
 export const ComboPacksSection: React.FC<ComboPacksSectionProps> = ({ onNavigate, standalone = false }) => {
-  const { combos, isLoading } = useComboPacks();
+  const { combos, featuredCombos, isLoading } = useComboPacks();
   const { addToCart, getItemQuantity } = useCart();
   const [selectedCombo, setSelectedCombo] = useState<ComboPack | null>(null);
   const [budgetTier, setBudgetTier] = useState(() => (new URLSearchParams(window.location.search).get('budget_tier') || '').toUpperCase());
   const visibleCombos = useMemo(() => {
-    const source = standalone && budgetTier ? combos.filter((combo) => combo.budgetTier === budgetTier) : combos;
+    const catalogue = standalone ? combos : (featuredCombos.length ? featuredCombos : combos);
+    const source = standalone && budgetTier ? catalogue.filter((combo) => combo.budgetTier === budgetTier) : catalogue;
     return standalone ? source : source.slice(0, 4);
-  }, [budgetTier, combos, standalone]);
+  }, [budgetTier, combos, featuredCombos, standalone]);
 
   React.useEffect(() => {
     const applyTier = (event: Event) => setBudgetTier(String((event as CustomEvent<string>).detail || '').toUpperCase());
@@ -89,7 +100,7 @@ export const ComboPacksSection: React.FC<ComboPacksSectionProps> = ({ onNavigate
               const setsInCart = comboCartSets(combo, getItemQuantity);
               const previewItems = combo.items.slice(0, 4);
               const heroProduct = previewItems[0]?.product;
-              const image = combo.imageUrl || (heroProduct ? getExactProductImage(heroProduct) : undefined);
+              const image = combo.imageUrl?.trim() || heroProduct?.imageUrl?.trim() || getReferenceComboImage(combo.name, combo.budgetTier) || (heroProduct ? getExactProductImage({ ...heroProduct, imageUrl: undefined }) : undefined);
               const itemWord = combo.totalUnits === 1 ? 'unit' : 'units';
               const availabilityNote = combo.isAvailable ? 'Ready to add' : `${combo.unavailableItems.length} item${combo.unavailableItems.length === 1 ? '' : 's'} unavailable`;
 
@@ -100,7 +111,7 @@ export const ComboPacksSection: React.FC<ComboPacksSectionProps> = ({ onNavigate
                     onClick={() => setSelectedCombo(combo)}
                     aria-label={`View ${combo.name}`}
                   >
-                    {image ? <img src={image} alt={combo.name} loading="lazy" decoding="async" /> : <div className="rt-combo-image-placeholder"><Package /></div>}
+                    {image ? <img src={image} alt={combo.name} loading="lazy" decoding="async" onError={(event) => { const fallback = heroProduct ? getExactProductImage({ ...heroProduct, imageUrl: undefined }) : getReferenceComboImage(combo.name, combo.budgetTier); if (fallback && !event.currentTarget.src.endsWith(fallback)) event.currentTarget.src = fallback; else event.currentTarget.hidden = true; }} /> : <div className="rt-combo-image-placeholder"><Package /></div>}
                     {combo.budgetTier && <span className="rt-combo-pack-budget">{combo.budgetTier}</span>}
                     {combo.badgeText && <span className="rt-combo-pack-items">{combo.badgeText}</span>}
                   </button>
@@ -172,7 +183,7 @@ export const ComboPacksSection: React.FC<ComboPacksSectionProps> = ({ onNavigate
               </div>
               <div className="rt-combo-modal-summary"><strong>{money(selectedCombo.calculatedPrice)}</strong><span>{selectedCombo.distinctProducts} products · {selectedCombo.totalUnits} total units</span><span>{selectedCombo.pricingMode === 'MANUAL' ? 'Database-managed manual price' : 'Calculated from live product rates'}</span></div>
               <div className="rt-combo-detail-list">
-                {selectedCombo.items.map((item) => <div className={`rt-combo-detail-row ${item.product.stockStatus === 'OUT_OF_STOCK' ? 'is-unavailable' : ''}`} key={item.itemId}><img src={getExactProductImage(item.product)} alt="" /><div><strong>{item.quantity}× {item.product.name}</strong><span>{item.itemLabel || item.product.category} · {item.product.unit}</span>{item.itemNote && <small>{item.itemNote}</small>}</div><b>{money(item.product.rate * item.quantity)}</b></div>)}
+                {selectedCombo.items.map((item) => <div className={`rt-combo-detail-row ${item.product.stockStatus === 'OUT_OF_STOCK' ? 'is-unavailable' : ''}`} key={item.itemId}><ProductImage product={item.product} alt="" /><div><strong>{item.quantity}× {item.product.name}</strong><span>{item.itemLabel || item.product.category} · {item.product.unit}</span>{item.itemNote && <small>{item.itemNote}</small>}</div><b>{money(item.product.rate * item.quantity)}</b></div>)}
               </div>
               <div className="rt-combo-modal-actions"><button className="rt-btn rt-btn-outline" onClick={() => setSelectedCombo(null)}>Continue browsing</button><button className="rt-btn rt-btn-primary" disabled={!selectedCombo.isAvailable} onClick={() => { addCombo(selectedCombo); setSelectedCombo(null); }}>{selectedCombo.isAvailable ? 'Add this combo to cart' : 'Combo temporarily unavailable'} <ShoppingBag size={16} /></button></div>
             </div>

@@ -2,7 +2,7 @@ import React from 'react';
 import { Minus, Plus, ShoppingCart, Sparkles } from 'lucide-react';
 import type { Product } from '../data/products';
 import { useCart } from '../context/CartContext';
-import { getExactProductImage } from '../utils/productImages';
+import { ProductImage } from './ProductImage';
 
 interface ProductCardProps {
   product: Product;
@@ -18,17 +18,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, compact = fal
   const mrpRate = Number(liveProduct.mrpRate || 0);
   const hasDiscount = mrpRate > product.rate;
   const discount = hasDiscount ? Math.max(1, Math.round((1 - product.rate / mrpRate) * 100)) : 0;
-  const image = getExactProductImage(product);
 
   return (
     <article data-rtc-component="product_card" className={`rt-product-card ${compact ? 'compact' : ''} ${soldOut ? 'sold-out' : ''}`}>
       <div className="rt-product-media">
         {onViewDetails ? (
           <button className="rt-product-image-button" onClick={onViewDetails} aria-label={`View details for ${product.name}`}>
-            <img loading="lazy" decoding="async" width={520} height={520} src={image} alt={product.name} />
+            <ProductImage product={product} loading="lazy" decoding="async" width={520} height={520} />
           </button>
         ) : (
-          <img loading="lazy" decoding="async" width={520} height={520} src={image} alt={product.name} />
+          <ProductImage product={product} loading="lazy" decoding="async" width={520} height={520} />
         )}
         {(product.popular || liveProduct.isBestseller) && <span className="rt-product-badge"><Sparkles /> Popular</span>}
         {discount > 0 && <span className="rt-discount-badge">{discount}% OFF</span>}

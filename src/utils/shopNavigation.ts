@@ -5,6 +5,17 @@ export type ShopIntent =
   | { type: 'budget'; value: string }
   | { type: 'best-sellers' };
 
+
+/** Build a shareable shop query while preserving unrelated filters/parameters. */
+export function buildCategorySearch(search: string, category: string): string {
+  const raw = search.startsWith('?') ? search.slice(1) : search;
+  const params = new URLSearchParams(raw);
+  if (!category.trim() || category === 'All') params.delete('category');
+  else params.set('category', category.trim());
+  const query = params.toString();
+  return query ? `?${query}` : '';
+}
+
 const KEY = 'redthunder_shop_intent_v1';
 
 export function setShopIntent(intent: ShopIntent) {

@@ -17,20 +17,33 @@ export type SupabaseAuthUser = {
 
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || 'https://ypmiinmkyvzdpakbkers.supabase.co').replace(/\/$/, '');
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const SESSION_KEY = 'redthunder_supabase_session_v1';
+export const SESSION_STORAGE_KEY = 'redthunder_supabase_session_v1';
 
 export const supabaseConfig = { url: SUPABASE_URL, publishableKey: SUPABASE_KEY };
 
 export function getSession(): SupabaseSession | null {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
 
 export function saveSession(session: SupabaseSession | null) {
-  if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  else localStorage.removeItem(SESSION_KEY);
+  if (session) localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+  else localStorage.removeItem(SESSION_STORAGE_KEY);
+}
+
+type SupabaseRequestError = Error & { status?: number; code?: string };
+function requestError(message: string, status: number, code = ''): SupabaseRequestError {
+  const error = new Error(message) as SupabaseRequestError;
+  error.status = status;
+  error.code = code;
+  return error;
+}
+
+export function getSupabaseErrorStatus(error: unknown): number | undefined {
+  const status = (error as SupabaseRequestError | null)?.status;
+  return typeof status === 'number' ? status : undefined;
 }
 
 async function request(path: string, init: RequestInit = {}, accessToken?: string) {
@@ -58,7 +71,7 @@ async function request(path: string, init: RequestInit = {}, accessToken?: strin
 
   let res: Response;
   try {
-    res = await fetch(`${SUPABASE_URL}${path}`, { ...init, headers });
+    res = await fetch(`${SUPABASE_URL}${path}`, { ...init, ...(path.startsWith('/auth/v1/') ? { cache: 'no-store' as RequestCache } : {}), headers });
   } catch {
     throw new Error('Could not reach Supabase. Check your internet connection and try again.');
   }
@@ -72,18 +85,27 @@ async function request(path: string, init: RequestInit = {}, accessToken?: strin
     const message = String(data?.message || data?.msg || data?.error_description || data?.error || '');
     if (path.startsWith('/auth/v1/token?grant_type=password') && res.status === 400 &&
         (code === 'invalid_credentials' || /invalid login credentials/i.test(message))) {
-      throw new Error('Incorrect email or password. Check your details, or use “Forgot password?” to reset your password.');
+      throw requestError('Incorrect email or password. Check your details, or use “Forgot password?” to reset your password.', res.status, code);
     }
     if (path.startsWith('/auth/v1/token?grant_type=password') && /email not confirmed/i.test(message)) {
-      throw new Error('Please verify your email address before signing in.');
+      throw requestError('Please verify your email address before signing in.', res.status, code);
+    }
+    if (path.startsWith('/auth/v1/signup') && /password should be at least|weak password|password is too short/i.test(message)) {
+      throw requestError('Choose a stronger password that meets the password requirements shown by Supabase Auth.', res.status, code);
+    }
+    if (path.startsWith('/auth/v1/signup') && /invalid email|email address is invalid/i.test(message)) {
+      throw requestError('Enter a valid email address and try again.', res.status, code);
+    }
+    if (path.startsWith('/auth/v1/user') && /password should be at least|weak password|password is too short/i.test(message)) {
+      throw requestError('Choose a stronger password that meets the password requirements configured in Supabase Auth.', res.status, code);
     }
     if (res.status === 429) {
-      throw new Error('Too many attempts. Please wait a moment and try again.');
+      throw requestError('Too many attempts. Please wait a moment and try again.', res.status, code);
     }
     if (res.status === 503 || res.status === 504) {
-      throw new Error('The service is temporarily unavailable. Check your connection and try again.');
+      throw requestError('The service is temporarily unavailable. Check your connection and try again.', res.status, code);
     }
-    throw new Error(message || `Supabase request failed (${res.status}).`);
+    throw requestError(message || `Supabase request failed (${res.status}).`, res.status, code);
   }
   return data;
 }
@@ -113,30 +135,184 @@ export async function authGetUser(accessToken: string): Promise<SupabaseAuthUser
   return request('/auth/v1/user', { method: 'GET' }, accessToken);
 }
 
+/**
+ * Customer identity, password validation, email confirmation, and token issuance are
+ * handled by Supabase Auth (GoTrue). This browser app never stores password hashes
+ * or validates a password against public.users. The public.users row is a profile
+ * linked by the database's on_auth_user_created trigger.
+ */
 export async function authPasswordSignIn(email: string, password: string): Promise<SupabaseSession> {
-  const session = await request('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email, password }) });
+  const session = await request('/auth/v1/token?grant_type=password', {
+    method: 'POST',
+    body: JSON.stringify({ email: email.trim(), password }),
+  });
+  if (!session?.access_token || !session?.refresh_token || !session?.user?.id) {
+    throw new Error('Supabase Auth did not return a complete session. Please try again.');
+  }
   saveSession(session);
   return session;
 }
 
-export async function authSignUp(email: string, password: string, metadata: Record<string, any> = {}): Promise<{ session: SupabaseSession | null; user: SupabaseAuthUser | null }> {
-  const data = await request('/auth/v1/signup', { method: 'POST', body: JSON.stringify({ email, password, data: metadata }) });
+export async function authSignUp(
+  email: string,
+  password: string,
+  metadata: Record<string, any> = {},
+  redirectTo = `${window.location.origin}/login`,
+): Promise<{ session: SupabaseSession | null; user: SupabaseAuthUser | null }> {
+  const data = await request(`/auth/v1/signup?redirect_to=${encodeURIComponent(redirectTo)}`, {
+    method: 'POST',
+    body: JSON.stringify({ email: email.trim(), password, data: metadata }),
+  });
+  // The Supabase dashboard's Confirm email setting determines whether signup
+  // returns a session or a pending user. Do not fabricate a local authenticated state.
   if (data?.session) saveSession(data.session);
-  return data;
+  else saveSession(null);
+  return { session: data?.session || null, user: data?.user || null };
 }
 
 export async function authRefresh(session: SupabaseSession): Promise<SupabaseSession> {
-  const data = await request('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: JSON.stringify({ refresh_token: session.refresh_token }) });
+  const data = await request('/auth/v1/token?grant_type=refresh_token', {
+    method: 'POST',
+    body: JSON.stringify({ refresh_token: session.refresh_token }),
+  });
+  if (!data?.access_token || !data?.refresh_token || !data?.user?.id) {
+    throw new Error('Supabase could not refresh this session. Please sign in again.');
+  }
   saveSession(data);
   return data;
 }
 
-export async function authResetPassword(email: string) {
-  await request('/auth/v1/recover', { method: 'POST', body: JSON.stringify({ email }) });
+export async function authSignOut(accessToken: string): Promise<void> {
+  try {
+    // Revoke the Supabase Auth session server-side, then clear the local token copy.
+    await request('/auth/v1/logout', { method: 'POST' }, accessToken);
+  } finally {
+    clearSession();
+  }
 }
 
-export function authProviderUrl(provider: 'google' | 'apple' | 'azure', redirectTo = window.location.origin) {
-  return `${SUPABASE_URL}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(redirectTo)}`;
+export async function authResetPassword(email: string, redirectTo = `${window.location.origin}/login`) {
+  await request(`/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
+    method: 'POST',
+    body: JSON.stringify({ email: email.trim() }),
+  });
+}
+
+export async function authUpdatePassword(password: string, accessToken: string): Promise<SupabaseAuthUser> {
+  return request('/auth/v1/user', {
+    method: 'PUT',
+    body: JSON.stringify({ password }),
+  }, accessToken);
+}
+
+export const OAUTH_PROVIDER_LABELS = {
+  apple: 'Apple',
+  azure: 'Microsoft',
+  bitbucket: 'Bitbucket',
+  discord: 'Discord',
+  facebook: 'Facebook',
+  figma: 'Figma',
+  github: 'GitHub',
+  gitlab: 'GitLab',
+  google: 'Google',
+  kakao: 'Kakao',
+  keycloak: 'Keycloak',
+  linkedin: 'LinkedIn',
+  linkedin_oidc: 'LinkedIn',
+  notion: 'Notion',
+  slack: 'Slack',
+  slack_oidc: 'Slack',
+  spotify: 'Spotify',
+  twitch: 'Twitch',
+  twitter: 'X / Twitter',
+  workos: 'WorkOS',
+  zoom: 'Zoom',
+} as const;
+
+export type AuthOAuthProviderName = keyof typeof OAUTH_PROVIDER_LABELS;
+export type EnabledOAuthProvider = { id: AuthOAuthProviderName; label: string };
+const OAUTH_PKCE_KEY = 'redthunder_supabase_oauth_pkce_v1';
+const OAUTH_PKCE_MAX_AGE_MS = 15 * 60 * 1000;
+
+/**
+ * The built-in social-provider switches live in Supabase Auth configuration,
+ * not in public application tables. The public Auth settings endpoint exposes
+ * which external providers are enabled without exposing client secrets.
+ */
+export async function authGetEnabledOAuthProviders(): Promise<EnabledOAuthProvider[]> {
+  const settings = await request('/auth/v1/settings', { method: 'GET' });
+  const external = settings?.external || settings?.external_providers || {};
+  const flags = Array.isArray(external)
+    ? Object.fromEntries(external.map((name: unknown) => [String(name), true]))
+    : external;
+
+  return (Object.keys(OAUTH_PROVIDER_LABELS) as AuthOAuthProviderName[])
+    .filter((id) => flags?.[id] === true || flags?.[id]?.enabled === true || flags?.[id] === 'true')
+    .map((id) => ({ id, label: OAUTH_PROVIDER_LABELS[id] }));
+}
+
+function base64Url(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+export function clearOAuthPkceState() {
+  try { localStorage.removeItem(OAUTH_PKCE_KEY); } catch { /* storage is best effort */ }
+}
+
+/** Start Supabase's standard OAuth authorization-code flow with PKCE. */
+export async function authProviderUrl(provider: AuthOAuthProviderName, redirectTo = `${window.location.origin}/login`) {
+  if (!Object.prototype.hasOwnProperty.call(OAUTH_PROVIDER_LABELS, provider)) {
+    throw new Error('That sign-in provider is not supported by this application.');
+  }
+  if (!globalThis.crypto?.getRandomValues || !globalThis.crypto?.subtle) {
+    throw new Error('Secure OAuth sign-in requires a modern browser on HTTPS or localhost.');
+  }
+
+  const random = crypto.getRandomValues(new Uint8Array(32));
+  const verifier = base64Url(random);
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  const challenge = base64Url(new Uint8Array(digest));
+  localStorage.setItem(OAUTH_PKCE_KEY, JSON.stringify({ verifier, provider, createdAt: Date.now() }));
+
+  const url = new URL(`${SUPABASE_URL}/auth/v1/authorize`);
+  url.searchParams.set('provider', provider);
+  url.searchParams.set('redirect_to', redirectTo);
+  url.searchParams.set('code_challenge', challenge);
+  url.searchParams.set('code_challenge_method', 's256');
+  return url.toString();
+}
+
+/** Exchange the one-time callback code for a session using its local PKCE verifier. */
+export async function authExchangeCodeForSession(code: string): Promise<SupabaseSession> {
+  let stored: { verifier?: string; createdAt?: number } | null = null;
+  try {
+    const raw = localStorage.getItem(OAUTH_PKCE_KEY);
+    stored = raw ? JSON.parse(raw) : null;
+  } catch { stored = null; }
+
+  if (!stored?.verifier || !stored.createdAt || Date.now() - stored.createdAt > OAUTH_PKCE_MAX_AGE_MS) {
+    clearOAuthPkceState();
+    throw new Error('Your sign-in link has expired or its secure verification state is missing. Please start sign-in again.');
+  }
+  if (!code) throw new Error('Supabase did not return an OAuth authorization code.');
+
+  try {
+    const session = await request('/auth/v1/token?grant_type=pkce', {
+      method: 'POST',
+      body: JSON.stringify({ auth_code: code, code_verifier: stored.verifier }),
+    });
+    if (!session?.access_token || !session?.refresh_token || !session?.user?.id) {
+      throw new Error('Supabase Auth did not return a complete OAuth session. Please try again.');
+    }
+    saveSession(session);
+    clearOAuthPkceState();
+    return session as SupabaseSession;
+  } catch (error) {
+    clearOAuthPkceState();
+    throw error;
+  }
 }
 
 // ---- Stale-while-revalidate reads of PUBLIC data (catalogue, offers, theme, company) ----------------

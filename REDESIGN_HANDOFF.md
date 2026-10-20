@@ -47,6 +47,4 @@ The following were byte-for-byte unchanged versus the supplied repository:
 
 ## Live-catalogue combo packs
 
-Added 24 predefined combo pack recipes in `src/data/comboPacks.ts`. Recipes contain only category/keyword/price-selection rules; they do not store product IDs, copied product names, prices or database records. The recipes are resolved at runtime against the products returned by `ProductsContext`, so current Supabase product name, price, image and stock remain authoritative.
-
-`src/components/ComboPacksSection.tsx` renders the resolved packs and adds a selected combo by calling the existing `CartContext.addToCart()` once per resolved live product. No cart, checkout or order API was changed. No Supabase schema, table, policy, migration, storage bucket or edge function was added or modified.
+Current combo display reads `combo_pack_catalogue`, the existing database view filtered by `website_key=cart`. The view resolves each pack’s real database items and computes prices from live product rates; the latest live project contains 24 active cart combo packs, 8 featured. `src/components/ComboPacksSection.tsx` adds a selected combo through the existing `CartContext.addToCart()` flow. No production schema, data, policies, storage buckets, or edge functions were changed as part of the homepage database integration update.

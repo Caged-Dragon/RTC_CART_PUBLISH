@@ -4,7 +4,7 @@ import type { ScreenId } from './Navbar';
 import { useProducts } from '../context/ProductsContext';
 import { useCart } from '../context/CartContext';
 import { ProductCard } from './ProductCard';
-import { getExactProductImage } from '../utils/productImages';
+import { ProductImage } from './ProductImage';
 import { setShopIntent } from '../utils/shopNavigation';
 
 interface GiftBoxesShowcaseProps {
@@ -40,7 +40,7 @@ export const GiftBoxesShowcase: React.FC<GiftBoxesShowcaseProps> = ({ isStandalo
           <div className="rt-gift-grid">
             {giftBoxes.map((product) => (
               <article className="rt-combo-card" key={product.id}>
-                <div className="rt-combo-image-wrap"><img src={getExactProductImage(product)} alt={product.name} loading="lazy" decoding="async" /><span className="rt-combo-popular">{product.popular ? 'Popular' : 'Gift Box'}</span></div>
+                <div className="rt-combo-image-wrap"><ProductImage product={product} alt={product.name} loading="lazy" decoding="async" /><span className="rt-combo-popular">{product.popular ? 'Popular' : 'Gift Box'}</span></div>
                 <div className="rt-combo-body">
                   <span className="rt-combo-kicker">{product.pieces || product.unit}</span>
                   <h3>{product.name}</h3>

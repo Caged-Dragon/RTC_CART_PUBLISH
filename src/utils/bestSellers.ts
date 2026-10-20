@@ -34,8 +34,8 @@ export function getBestSellerProducts(
   return [...unique.values()];
 }
 
-/** Feature approximately 55% of the shared best-seller list on the home page. */
+/** Keep the home preview aligned with the reference layout; the full database list remains on /best-sellers. */
 export function getHomepageBestSellerCount(total: number): number {
   if (!Number.isFinite(total) || total <= 0) return 0;
-  return Math.min(total, Math.max(1, Math.round(total * 0.55)));
+  return Math.min(4, Math.floor(total));
 }

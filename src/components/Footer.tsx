@@ -2,6 +2,7 @@ import React from 'react';
 import { MessageCircle, ShieldCheck } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { ScreenId } from './Navbar';
+import { getWhatsAppHref } from '../utils/contactLinks';
 
 interface FooterProps {
   onOpenSafety: () => void;
@@ -11,6 +12,10 @@ interface FooterProps {
 export const Footer: React.FC<FooterProps> = ({ onOpenSafety, onNavigate }) => {
   const { storeInfo } = useStore();
   const go = (screen: ScreenId) => onNavigate?.(screen);
+  const whatsappHref = getWhatsAppHref(storeInfo.phone);
+  const handleWhatsAppClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!whatsappHref) { event.preventDefault(); go('contact'); }
+  };
 
   return (
     <footer data-rtc-component="footer" className="rt-footer">
@@ -22,7 +27,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenSafety, onNavigate }) => {
             <p>{storeInfo.tagline}. Factory-direct crackers from Sivakasi for family celebrations, gifting and festive events.</p>
             <div className="rt-footer-proof"><ShieldCheck /> Genuine Sivakasi Factory Direct Stock</div>
             <div className="rt-socials" aria-label="Contact channels">
-              <a href={`https://wa.me/${storeInfo.phone}`} target="_blank" rel="noreferrer" aria-label="WhatsApp support"><MessageCircle /></a>
+              <a href={whatsappHref || '/contact'} target={whatsappHref ? '_blank' : undefined} rel={whatsappHref ? 'noreferrer' : undefined} onClick={handleWhatsAppClick} aria-label="WhatsApp support"><MessageCircle /></a>
             </div>
           </div>
 
@@ -38,7 +43,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenSafety, onNavigate }) => {
 
           <div>
             <h3>Customer Support</h3>
-            <a href={`https://wa.me/${storeInfo.phone}`} target="_blank" rel="noreferrer">WhatsApp</a>
+            <a href={whatsappHref || '/contact'} target={whatsappHref ? '_blank' : undefined} rel={whatsappHref ? 'noreferrer' : undefined} onClick={handleWhatsAppClick}>WhatsApp</a>
             <a href={`tel:${storeInfo.phone}`}>Phone</a>
             <button onClick={() => go('mail')}>Email Bill</button>
             <button onClick={() => go('tracker')}>Track Order</button>

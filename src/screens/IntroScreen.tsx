@@ -31,6 +31,8 @@ import { useCart } from '../context/CartContext';
 import { ComboPacksSection } from '../components/ComboPacksSection';
 import type { Product } from '../data/products';
 import { getBestSellerProducts, getHomepageBestSellerCount } from '../utils/bestSellers';
+import { getWhatsAppHref } from '../utils/contactLinks';
+import { getCategoryFallbackImage, normalizeCategoryName } from '../utils/categoryArtwork';
 
 interface IntroScreenProps { onNavigate: (screen: ScreenId) => void; onSelectProduct: (product: Product) => void; }
 
@@ -55,6 +57,7 @@ const money = (value: number) => `₹${Math.round(value).toLocaleString('en-IN')
 
 export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectProduct }) => {
   const { storeInfo } = useStore();
+  const whatsappHref = getWhatsAppHref(storeInfo.phone);
   const { products, isLoading: productsLoading } = useProducts();
   const { picks: homepagePicks, isLoading: picksLoading } = useHomepagePicks();
   const { categories, isLoading: categoriesLoading } = useCategories();
@@ -68,11 +71,20 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectPr
   const categoryCards = useMemo(() => {
     return categories
       .filter((category) => category.is_active)
+      .slice(0, 8)
       .map((category) => {
-        const sample = products.find((product) => product.category === category.category_name);
-        // Prefer the category image maintained in Supabase. An actual catalogue product image is
-        // a sensible fallback; categories without either source receive a neutral visual tile.
-        return { ...category, image: category.image_url || (sample ? getExactProductImage(sample) : '') };
+        const normalizedCategory = normalizeCategoryName(category.category_name);
+        const categoryProducts = products.filter((product) => normalizeCategoryName(product.category) === normalizedCategory);
+        const sample = categoryProducts.find((product) => product.imageUrl?.trim()) || categoryProducts[0];
+        const referenceImage = getCategoryFallbackImage(category.category_name);
+        const sampleDatabaseImage = sample?.imageUrl?.trim() || '';
+        const sampleImage = sample ? getExactProductImage(sample) : '';
+        // The order is data-first: category image URL, then an image URL from a real product
+        // in that category, then bundled reference art only when the database has no image.
+        const categoryDatabaseImage = category.image_url?.trim() || '';
+        const image = categoryDatabaseImage || sampleDatabaseImage || referenceImage || sampleImage;
+        const fallbackImage = categoryDatabaseImage ? (sampleDatabaseImage || referenceImage || sampleImage) : sampleDatabaseImage ? (referenceImage || sampleImage) : sampleImage;
+        return { ...category, image, fallbackImage, productCount: categoryProducts.length };
       });
   }, [categories, products]);
 
@@ -107,8 +119,8 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectPr
   };
 
   const browseProducts = () => {
-    onNavigate('products');
     setShopIntent({ type: 'all' });
+    onNavigate('products');
   };
 
   return (
@@ -126,32 +138,36 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectPr
         </div>
       </section>
 
-      <LiveOffersSection onNavigate={onNavigate} />
-
       <section className="rt-section rt-section-white" aria-labelledby="category-heading">
         <div className="rt-container">
           <div className="rt-section-heading">
             <div><span className="rt-kicker">Shop by</span><h2 id="category-heading">Category</h2></div>
-            <button className="rt-section-link" onClick={browseProducts}>View All Categories <ArrowRight aria-hidden="true" /></button>
+            <button className="rt-section-link" onClick={() => onNavigate('categories')}>View All Categories <ArrowRight aria-hidden="true" /></button>
           </div>
           <div className="rt-category-grid">
             {categoriesLoading && !categoryCards.length
               ? Array.from({ length: 8 }).map((_, index) => <div className="rt-skeleton rt-category-skeleton" key={index} />)
-              : categoryCards.slice(0, 8).map((category) => (
+              : categoryCards.map((category) => (
                 <button
                   key={category.category_id}
                   className="rt-category-card"
                   onClick={() => {
-                    onNavigate('products');
+                    // Persist the filter before switching screens so the shop consumes it on first render.
                     setShopIntent({ type: 'category', value: category.category_name });
+                    onNavigate('products');
                   }}
                   aria-label={`Browse ${category.category_name}`}
                 >
                   <div className={`rt-category-image ${category.image ? '' : 'is-placeholder'}`}>
                     <Sparkles className="rt-category-fallback-icon" aria-hidden="true" />
-                    {category.image && <img loading="lazy" decoding="async" src={category.image} alt={category.category_name} onError={(event) => { event.currentTarget.hidden = true; }} />}
+                    {category.image && <img loading="lazy" decoding="async" src={category.image} alt={category.category_name} onError={(event) => {
+                      const fallback = category.fallbackImage;
+                      if (fallback && !event.currentTarget.src.endsWith(fallback)) event.currentTarget.src = fallback;
+                      else event.currentTarget.hidden = true;
+                    }} />}
                   </div>
                   <strong>{category.category_name.replace(/Colourful|Colourfull/g, 'Colour')}</strong>
+                  <span className="rt-category-count">{category.productCount} {category.productCount === 1 ? 'product' : 'products'}</span>
                 </button>
               ))}
           </div>
@@ -245,6 +261,8 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectPr
 
       <ComboPacksSection onNavigate={onNavigate} />
 
+      <LiveOffersSection onNavigate={onNavigate} />
+
       <section className="rt-section rt-how-section" aria-labelledby="how-heading">
         <div className="rt-container">
           <div className="rt-section-heading">
@@ -288,7 +306,7 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectPr
           </div>
           <div className="rt-hero-actions">
             <button onClick={browseProducts} className="rt-btn rt-btn-primary">Shop Now <ArrowRight aria-hidden="true" /></button>
-            <a className="rt-btn rt-btn-whatsapp" href={`https://wa.me/${storeInfo.phone}`} target="_blank" rel="noreferrer"><MessageCircle aria-hidden="true" /> WhatsApp Us</a>
+            <a className="rt-btn rt-btn-whatsapp" href={whatsappHref || '/contact'} target={whatsappHref ? '_blank' : undefined} rel={whatsappHref ? 'noreferrer' : undefined} onClick={(event) => { if (!whatsappHref) { event.preventDefault(); onNavigate('contact'); } }}><MessageCircle aria-hidden="true" /> WhatsApp Us</a>
           </div>
         </div>
       </section>

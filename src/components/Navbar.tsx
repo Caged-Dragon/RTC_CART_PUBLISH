@@ -22,11 +22,12 @@ import { useAuth } from '../context/AuthContext';
 import { useStore } from '../context/StoreContext';
 import { useCategories } from '../context/CategoriesContext';
 import { setShopIntent } from '../utils/shopNavigation';
-import logoImage from '../assets/logo.jpeg';
+import { getWhatsAppHref } from '../utils/contactLinks';
 
 export type ScreenId =
   | 'intro'
   | 'products'
+  | 'categories'
   | 'bestsellers'
   | 'table'
   | 'cart'
@@ -57,6 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
   const { theme, toggleTheme } = useTheme();
   const { user, isAuthenticated } = useAuth();
   const { categories } = useCategories();
+  const whatsappHref = getWhatsAppHref(storeInfo.phone);
   const [menuOpen, setMenuOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -65,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
     () => [
       { id: 'intro', label: 'Home' },
       { id: 'products', label: 'Shop' },
-      { id: 'products', label: 'Categories' },
+      { id: 'categories', label: 'Categories' },
       { id: 'combos', label: 'Combos' },
       { id: 'bestsellers', label: 'Best Sellers' },
       { id: 'about', label: 'About Us' },
@@ -106,15 +108,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
         <div className="rt-container rt-nav-top-inner">
           <button className="rt-brand" onClick={() => handleNav('intro')} aria-label="RedThunder Crackers home">
             <span className="rt-brand-mark">
-              {storeInfo.logoUrl ? (
-                <img src={storeInfo.logoUrl} alt={storeInfo.name} />
-              ) : (
-                <img src={logoImage} alt="RedThunder Crackers" />
-              )}
-            </span>
-            <span className="rt-brand-copy">
-              <strong>RED<span>THUNDER</span></strong>
-              <small>CRACKERS</small>
+              <img
+                src={storeInfo.logoUrl || '/images/storefront/logo.jpg'}
+                alt={storeInfo.name || 'RedThunder Crackers'}
+                onError={(event) => {
+                  if (!event.currentTarget.src.endsWith('/images/storefront/logo.jpg')) {
+                    event.currentTarget.src = '/images/storefront/logo.jpg';
+                  }
+                }}
+              />
             </span>
           </button>
 
@@ -132,7 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
           </form>
 
           <div className="rt-nav-actions">
-            <a className="rt-nav-whatsapp" href={`https://wa.me/${storeInfo.phone}`} target="_blank" rel="noreferrer">
+            <a className="rt-nav-whatsapp" href={whatsappHref || '/contact'} target={whatsappHref ? '_blank' : undefined} rel={whatsappHref ? 'noreferrer' : undefined} onClick={(event) => { if (!whatsappHref) { event.preventDefault(); handleNav('contact'); } }}>
               <MessageCircle />
               <span><strong>WhatsApp</strong><small>Order & Support</small></span>
             </a>
@@ -168,33 +170,52 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
             {primaryNav.map((item) => {
               const isCategory = item.label === 'Categories';
               const isBest = item.label === 'Best Sellers';
-              const active = isCategory ? categoriesOpen : currentScreen === item.id;
+              const active = isCategory ? (categoriesOpen || currentScreen === 'categories') : currentScreen === item.id;
               return (
-                <div className="rt-nav-item-wrap" key={item.label}>
-                  <button
-                    className={`rt-nav-link ${active ? 'active' : ''}`}
-                    onClick={() => {
-                      if (isCategory) setCategoriesOpen((v) => !v);
-                      else if (isBest) showBestSellers();
-                      else {
-                        handleNav(item.id);
-                        if (item.label === 'Shop') setShopIntent({ type: 'all' });
-                      }
-                    }}
-                    aria-expanded={isCategory ? categoriesOpen : undefined}
-                  >
-                    {item.label}
-                    {isCategory && <ChevronDown />}
-                  </button>
+                <div className={`rt-nav-item-wrap ${isCategory ? 'rt-nav-category-wrap' : ''}`} key={item.label}>
+                  {isCategory ? (
+                    <>
+                      <button
+                        className={`rt-nav-link ${active ? 'active' : ''}`}
+                        onClick={() => handleNav('categories')}
+                        aria-current={currentScreen === 'categories' ? 'page' : undefined}
+                      >
+                        Categories
+                      </button>
+                      <button
+                        type="button"
+                        className={`rt-nav-link rt-nav-category-toggle ${categoriesOpen ? 'active' : ''}`}
+                        onClick={() => setCategoriesOpen((value) => !value)}
+                        aria-label={categoriesOpen ? 'Close quick category menu' : 'Open quick category menu'}
+                        aria-expanded={categoriesOpen}
+                      >
+                        <ChevronDown aria-hidden="true" />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className={`rt-nav-link ${active ? 'active' : ''}`}
+                      onClick={() => {
+                        if (isBest) showBestSellers();
+                        else {
+                          handleNav(item.id);
+                          if (item.label === 'Shop') setShopIntent({ type: 'all' });
+                        }
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  )}
                   {isCategory && categoriesOpen && (
                     <div className="rt-category-menu" role="menu">
+                      <button className="rt-category-menu-more" onClick={() => handleNav('categories')} role="menuitem">Browse all categories <span aria-hidden="true">→</span></button>
                       <button onClick={() => selectCategory('All')} role="menuitem">All Crackers</button>
                       {categories.filter((c) => c.is_active).slice(0, 10).map((category) => (
                         <button key={category.category_id} onClick={() => selectCategory(category.category_name)} role="menuitem">
                           {category.category_name}
                         </button>
                       ))}
-                      {categories.length > 10 && <button className="rt-category-menu-more" onClick={() => handleNav('products')}>View all categories</button>}
+                      {categories.filter((category) => category.is_active).length > 10 && <button className="rt-category-menu-more" onClick={() => handleNav('categories')} role="menuitem">View full category directory</button>}
                     </div>
                   )}
                 </div>
@@ -221,7 +242,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
             <div className="rt-mobile-grid">
               <button onClick={() => handleNav('intro')}><Home /> Home</button>
               <button onClick={() => { handleNav('products'); setShopIntent({ type: 'all' }); }}><Grid2X2 /> Shop</button>
-              <button onClick={() => selectCategory('All')}><Grid2X2 /> Categories</button>
+              <button onClick={() => handleNav('categories')}><Grid2X2 /> Categories</button>
               <button onClick={showBestSellers}><Gift /> Best Sellers</button>
               <button onClick={() => handleNav('combos')}><Gift /> Combos</button>
               <button onClick={() => handleNav('gift-boxes')}><Gift /> Gift Boxes</button>
@@ -238,7 +259,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
               <button onClick={() => { onOpenSafety(); setMenuOpen(false); }}><ShieldCheck /> Safety</button>
             </div>
             <div className="rt-mobile-menu-footer">
-              <a href={`https://wa.me/${storeInfo.phone}`} target="_blank" rel="noreferrer"><MessageCircle /> WhatsApp Support</a>
+              <a href={whatsappHref || '/contact'} target={whatsappHref ? '_blank' : undefined} rel={whatsappHref ? 'noreferrer' : undefined} onClick={(event) => { if (!whatsappHref) { event.preventDefault(); handleNav('contact'); } }}><MessageCircle /> WhatsApp Support</a>
               <button onClick={toggleTheme}>{theme === 'dark' ? <Sun /> : <Moon />} {theme === 'dark' ? 'Light mode' : 'Dark mode'}</button>
             </div>
           </div>
