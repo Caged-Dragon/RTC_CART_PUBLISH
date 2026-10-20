@@ -27,6 +27,7 @@ import { useCart } from '../context/CartContext';
 import { useStore } from '../context/StoreContext';
 import { ScreenId } from '../components/Navbar';
 import type { AuthOAuthProviderName } from '../lib/supabase';
+import exactCompanyLogoFallback from '../assets/logo.jpeg';
 
 interface AuthScreenProps {
   onNavigate: (screen: ScreenId) => void;
@@ -283,18 +284,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
             <div className="rt-auth-brand-mark">
               <img
                 className="rt-auth-brand-logo"
-                src={storeInfo.logoUrl || '/images/storefront/logo.jpg'}
+                src={storeInfo.logoUrl || exactCompanyLogoFallback}
                 alt={storeInfo.name || 'RedThunder Crackers'}
                 decoding="async"
-                onLoad={(event) => {
-                  const image = event.currentTarget;
-                  if (image.naturalHeight > 0 && image.naturalWidth / image.naturalHeight < 2 && !image.src.endsWith('/images/storefront/logo.jpg')) {
-                    image.src = '/images/storefront/logo.jpg';
-                  }
-                }}
                 onError={(event) => {
-                  if (!event.currentTarget.src.endsWith('/images/storefront/logo.jpg')) {
-                    event.currentTarget.src = '/images/storefront/logo.jpg';
+                  const image = event.currentTarget;
+                  // Keep the authentic source image intact; fallback bytes match the Supabase Storage logo.
+                  if (image.dataset.localFallback !== 'true') {
+                    image.dataset.localFallback = 'true';
+                    image.src = exactCompanyLogoFallback;
                   }
                 }}
               />

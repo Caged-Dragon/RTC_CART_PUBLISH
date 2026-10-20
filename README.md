@@ -112,6 +112,18 @@ OAuth buttons are discovered from enabled provider flags returned by Supabase Au
 
 - Supabase Auth logs from the live project showed `/settings` responding with HTTP 200 and `/authorize` redirects for Facebook, Google, and Azure (Microsoft). Those entries show OAuth initiation works; `auth.identities` still has only email identities, so a successful provider return is not verified. Provider client credentials and app-console redirect URLs remain the likely items to confirm after the redirect.
 - The active database banner's desktop/mobile storage objects have identical ETag and size (369,427 bytes), indicating the same landscape creative was configured for mobile. The homepage now uses a capped, non-cropping frame, an unobtrusive blurred backdrop, and falls back to the bundled portrait-safe mobile artwork if the mobile image is landscape or fails to load.
-- The navbar and account logo use a wider frame with `object-fit: contain` and the bundled full-wordmark fallback. A direct `/categories` route is now resolved to the category directory, not the product list.
+- The navbar and account screen render the actual `company_profile.logo_url` image without switching to a different wordmark based on image dimensions. The local fallback `src/assets/logo.jpeg` is byte-for-byte identical to the active Supabase Storage logo object (its file MD5 matches the Storage ETag), and is rendered with `object-fit: contain`, no filters, no crop and no edit.
+- The database banner frame follows the loaded image's natural aspect ratio. The image is contained without stretching/cropping, and Shop/WhatsApp CTA controls remain in a separate row after the full artwork in normal document flow. The CTA row cannot cover the banner's bottom edge.
+- A direct `/categories` route is resolved to the category directory, not the product list.
 - Validation for the last update: `npm test` reports 8 passing tests; CSS parses; TypeScript/TSX transpile syntax checks report zero errors across 64 files. `npm run build` could not run in this sandbox because `node_modules/.bin/vite` is unavailable; run `npm ci && npm run build` in the project environment.
 - See `AUTH_OAUTH_AUDIT_2026-10-20.md` for live project checks and the provider-console checklist.
+
+
+## Logo and complete-banner visibility correction (2026-10-20)
+
+- `company_profile.logo_url` is the primary source for the navbar and account-page logo. Removed the previous on-load rule that replaced square database logos with a different local wordmark. The local fallback is the exact same JPEG bytes as the live Supabase Storage logo (MD5/ETag: `e4ba4e0aaed8815ff3d790e54fbb2122`).
+- The source image is not altered, filtered or cropped. The square source gets a square frame so the complete mark is visible.
+- `HomeBanner` now measures the loaded desktop/mobile image and applies its natural `aspect-ratio`. The action strip follows the entire image and remains in the document flow instead of covering the banner bottom.
+- `npm test`: 8 passed. A full `npm run lint` / production build remains unverified here because React, Vite and several package dependencies are not installed in this workspace. Run `npm ci`, `npm run lint`, and `npm run build` before deploying.
+
+See `LOGO_BANNER_VISIBILITY_FIX.md` for the latest logo-source verification and non-overlapping banner layout correction.

@@ -23,6 +23,7 @@ import { useStore } from '../context/StoreContext';
 import { useCategories } from '../context/CategoriesContext';
 import { setShopIntent } from '../utils/shopNavigation';
 import { getWhatsAppHref } from '../utils/contactLinks';
+import exactCompanyLogoFallback from '../assets/logo.jpeg';
 
 export type ScreenId =
   | 'intro'
@@ -109,18 +110,16 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
           <button className="rt-brand" onClick={() => handleNav('intro')} aria-label="RedThunder Crackers home">
             <span className="rt-brand-mark">
               <img
-                src={storeInfo.logoUrl || '/images/storefront/logo.jpg'}
+                src={storeInfo.logoUrl || exactCompanyLogoFallback}
                 alt={storeInfo.name || 'RedThunder Crackers'}
-                onLoad={(event) => {
-                  const image = event.currentTarget;
-                  // The header requires the full horizontal wordmark; replace a square/cropped DB mark.
-                  if (image.naturalHeight > 0 && image.naturalWidth / image.naturalHeight < 2 && !image.src.endsWith('/images/storefront/logo.jpg')) {
-                    image.src = '/images/storefront/logo.jpg';
-                  }
-                }}
+                decoding="async"
                 onError={(event) => {
-                  if (!event.currentTarget.src.endsWith('/images/storefront/logo.jpg')) {
-                    event.currentTarget.src = '/images/storefront/logo.jpg';
+                  const image = event.currentTarget;
+                  // This fallback is byte-for-byte identical to the current public logo object in Supabase Storage.
+                  // Never replace the database logo based on its aspect ratio or crop/edit the source image.
+                  if (image.dataset.localFallback !== 'true') {
+                    image.dataset.localFallback = 'true';
+                    image.src = exactCompanyLogoFallback;
                   }
                 }}
               />
