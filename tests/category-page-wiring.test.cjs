@@ -11,6 +11,7 @@ test('category directory is routed and each category card opens the filtered sho
   const home = read('src/screens/IntroScreen.tsx');
   const navbar = read('src/components/Navbar.tsx');
   const mobileNav = read('src/components/MobileBottomNav.tsx');
+  const navigationTarget = read('src/utils/navigationTarget.ts');
 
   assert.match(app, /categories:\s*'\/categories'/);
   assert.match(app, /currentScreen === 'categories' && <CategoriesScreen/);
@@ -22,4 +23,5 @@ test('category directory is routed and each category card opens the filtered sho
   assert.match(home, /onNavigate\('categories'\)/);
   assert.match(navbar, /onClick=\{\(\) => handleNav\('categories'\)\}/);
   assert.match(mobileNav, /setCurrentScreen\('categories'\)/);
+  assert.match(navigationTarget, /'\/categories': 'categories'/);
 });

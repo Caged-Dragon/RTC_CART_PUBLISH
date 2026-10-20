@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useStore } from '../context/StoreContext';
 import { ScreenId } from '../components/Navbar';
 import type { AuthOAuthProviderName } from '../lib/supabase';
 
@@ -41,6 +42,21 @@ function friendlyAuthError(error: unknown, mode: AuthMode): string {
   const normalized = message.toLocaleLowerCase();
   if (/invalid login credentials|invalid_credentials|email or password/.test(normalized)) {
     return 'The email address or password did not match. Check your details or use Forgot password to reset it.';
+  }
+  if (/users_phone_key|duplicate key.*phone|phone.*already (registered|used|in use)|sqlstate 23505/.test(normalized)) {
+    return 'This mobile number is already registered to another account. Use the number linked to your account, or contact support if this is your number.';
+  }
+  if (/redirect_uri_mismatch|redirect uri mismatch|redirect url mismatch/.test(normalized)) {
+    return 'The identity provider rejected its callback URL. In the Google, Facebook or Microsoft app, set the callback to https://ypmiinmkyvzdpakbkers.supabase.co/auth/v1/callback; separately allow your website URL in Supabase Authentication → URL Configuration.';
+  }
+  if (/invalid_client|invalid client|client_secret|client_id|oauth provider.*(configuration|rejected)/.test(normalized)) {
+    return 'The provider rejected its OAuth configuration. Check the provider Client ID and Secret in Supabase Authentication → Sign In / Providers.';
+  }
+  if (/access_denied|user_cancelled|user canceled|user cancelled/.test(normalized)) {
+    return 'Sign-in was cancelled or blocked by the identity provider. Try again, or use email sign-in.';
+  }
+  if (/email_not_provided|email not returned|email.*missing/.test(normalized)) {
+    return 'The identity provider did not return an email address. Check its email permission and try again.';
   }
   if (/email not confirmed|email_not_confirmed/.test(normalized)) {
     return 'Please confirm your email using the link Supabase sent you, then sign in again.';
@@ -93,6 +109,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
     clearAuthCallbackError,
   } = useAuth();
   const { updateCustomerDetails } = useCart();
+  const { storeInfo } = useStore();
 
   const [mode, setMode] = useState<AuthMode>('signin');
   const [name, setName] = useState('');
@@ -116,7 +133,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     if (!authCallbackError) return;
-    setMessage('error', authCallbackError);
+    setMessage('error', friendlyAuthError(new Error(authCallbackError), 'signin'));
     clearAuthCallbackError();
   }, [authCallbackError, clearAuthCallbackError]);
 
@@ -263,7 +280,25 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
         <aside className="rt-auth-story" aria-label="RedThunder customer benefits">
           <img className="rt-auth-story-image" src="/images/storefront/hero-desktop.jpg" alt="" aria-hidden="true" />
           <div className="rt-auth-story-content">
-            <div className="rt-auth-brand-mark" aria-hidden="true">RT</div>
+            <div className="rt-auth-brand-mark">
+              <img
+                className="rt-auth-brand-logo"
+                src={storeInfo.logoUrl || '/images/storefront/logo.jpg'}
+                alt={storeInfo.name || 'RedThunder Crackers'}
+                decoding="async"
+                onLoad={(event) => {
+                  const image = event.currentTarget;
+                  if (image.naturalHeight > 0 && image.naturalWidth / image.naturalHeight < 2 && !image.src.endsWith('/images/storefront/logo.jpg')) {
+                    image.src = '/images/storefront/logo.jpg';
+                  }
+                }}
+                onError={(event) => {
+                  if (!event.currentTarget.src.endsWith('/images/storefront/logo.jpg')) {
+                    event.currentTarget.src = '/images/storefront/logo.jpg';
+                  }
+                }}
+              />
+            </div>
             <p className="rt-auth-eyebrow">REDTHUNDER CRACKERS · SIVAKASI</p>
             <h2>Celebrations start with a better way to shop.</h2>
             <p className="rt-auth-story-copy">Sign in once to keep your orders, delivery details and favourites together.</p>

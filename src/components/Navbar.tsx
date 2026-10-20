@@ -111,6 +111,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
               <img
                 src={storeInfo.logoUrl || '/images/storefront/logo.jpg'}
                 alt={storeInfo.name || 'RedThunder Crackers'}
+                onLoad={(event) => {
+                  const image = event.currentTarget;
+                  // The header requires the full horizontal wordmark; replace a square/cropped DB mark.
+                  if (image.naturalHeight > 0 && image.naturalWidth / image.naturalHeight < 2 && !image.src.endsWith('/images/storefront/logo.jpg')) {
+                    image.src = '/images/storefront/logo.jpg';
+                  }
+                }}
                 onError={(event) => {
                   if (!event.currentTarget.src.endsWith('/images/storefront/logo.jpg')) {
                     event.currentTarget.src = '/images/storefront/logo.jpg';

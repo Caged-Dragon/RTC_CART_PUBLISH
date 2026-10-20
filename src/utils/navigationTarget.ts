@@ -6,7 +6,7 @@ const screenByPath: Record<string, ScreenId> = {
   '/home': 'intro',
   '/products': 'products',
   '/shop': 'products',
-  '/categories': 'products',
+  '/categories': 'categories',
   '/price-list': 'table',
   '/table': 'table',
   '/cart': 'cart',

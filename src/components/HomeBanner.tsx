@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ArrowRight, MessageCircle, Sparkles } from 'lucide-react';
 import { dbSelectSWR } from '../lib/supabase';
 import { useStore } from '../context/StoreContext';
 import { navigateToConfiguredTarget } from '../utils/navigationTarget';
@@ -32,6 +32,8 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
   const { storeInfo } = useStore();
   const [banners, setBanners] = useState<BannerRow[]>([]);
   const [index, setIndex] = useState(0);
+  const [bannerImageFailed, setBannerImageFailed] = useState(false);
+  const [useReferenceMobileArt, setUseReferenceMobileArt] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -56,18 +58,24 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
   }, [banners.length, index]);
 
   useEffect(() => {
+    setBannerImageFailed(false);
+    setUseReferenceMobileArt(false);
+  }, [banners[index]?.id, banners[index]?.image_url, banners[index]?.mobile_image_url]);
+
+  useEffect(() => {
     if (banners.length < 2) return;
     const timer = window.setInterval(() => setIndex((value) => (value + 1) % banners.length), 6500);
     return () => window.clearInterval(timer);
   }, [banners.length]);
 
   const banner = banners[index];
-  const background = banner?.image_url || '/images/redthunder_hero_crackers_1791297525760.jpg';
-  const mobileBackground = banner?.mobile_image_url || banner?.image_url || background;
-  const headline = useMemo(() => banner?.headline?.trim() || 'Celebrate More. Spend Less.', [banner?.headline]);
-  const subheadline = useMemo(() => banner?.subheadline?.trim() || 'Quality Crackers at Factory Direct Prices', [banner?.subheadline]);
+  const background = bannerImageFailed
+    ? REFERENCE_DESKTOP
+    : banner?.image_url || '/images/redthunder_hero_crackers_1791297525760.jpg';
+  const mobileBackground = bannerImageFailed || useReferenceMobileArt
+    ? REFERENCE_MOBILE
+    : banner?.mobile_image_url || banner?.image_url || REFERENCE_MOBILE;
   const offerTitle = banner?.offers?.title || 'THIS DIWALI';
-  const hasCustomHeadline = Boolean(banner?.headline?.trim());
   const whatsappHref = getWhatsAppHref(storeInfo.phone);
   const handleShopNow = () => {
     if (banner) {
@@ -82,32 +90,62 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
     <section data-rtc-component="home_banner" className={`rt-hero ${banner ? 'rt-hero-dynamic' : 'rt-hero-reference'}`}>
       {banner ? (
         <>
-          <picture className="rt-hero-image">
-            <source media="(max-width: 640px)" srcSet={mobileBackground} />
-            <img src={background} alt={banner.alt_text || 'RedThunder Crackers Diwali celebration'} fetchPriority="high" decoding="async" />
-          </picture>
-          <div className="rt-hero-sheen" aria-hidden="true" />
-          <div className="rt-container rt-hero-inner">
-            <div className="rt-hero-content">
-              <span className="rt-hero-kicker"><Sparkles /> {offerTitle}</span>
-              <h1 data-rtc-component="hero_heading">{hasCustomHeadline ? headline : <><span className="rt-hero-highlight-gold">Celebrate More.</span><br /><span>Spend Less.</span></>}</h1>
-              <p data-rtc-component="hero_paragraph">{subheadline}</p>
-
-              <div className="rt-hero-actions">
-                <button onClick={handleShopNow} className="rt-btn rt-btn-primary">{banner.button_text?.trim() || 'Shop Now'} <ArrowRight /></button>
-                <a className="rt-btn rt-btn-whatsapp" href={whatsappHref || '/contact'} target={whatsappHref ? '_blank' : undefined} rel={whatsappHref ? 'noreferrer' : undefined} onClick={(event) => { if (!whatsappHref) { event.preventDefault(); onNavigate('contact'); } }}><MessageCircle /> Order on WhatsApp</a>
+          {/* Uploaded banners are complete artwork. Keep their natural ratio: no crop, stretch, or overlaid text. */}
+          <div className="rt-hero-composed">
+            <img className="rt-hero-composed-backdrop" src={background} alt="" aria-hidden="true" decoding="async" />
+            <picture className="rt-hero-composed-image">
+              <source media="(max-width: 640px)" srcSet={mobileBackground} />
+              <img
+                src={background}
+                alt={banner.alt_text || 'RedThunder Crackers celebration and product banner'}
+                fetchPriority="high"
+                decoding="async"
+                onLoad={(event) => {
+                  const image = event.currentTarget;
+                  // Avoid using a landscape creative as a phone banner when the database's mobile URL
+                  // accidentally points to the same artwork as the desktop image.
+                  if (window.matchMedia('(max-width: 640px)').matches && image.naturalWidth > image.naturalHeight * 1.25) {
+                    setUseReferenceMobileArt(true);
+                  }
+                }}
+                onError={() => setBannerImageFailed(true)}
+              />
+            </picture>
+            {banners.length > 1 && (
+              <div className="rt-hero-dots rt-hero-composed-dots" aria-label="Promotional banners">
+                {banners.map((item, itemIndex) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setIndex(itemIndex)}
+                    aria-label={`Show promotion ${itemIndex + 1}`}
+                    aria-current={itemIndex === index ? 'true' : undefined}
+                    className={itemIndex === index ? 'active' : ''}
+                  />
+                ))}
               </div>
-
-              <div className="rt-hero-features" aria-label="Store benefits">
-                <span><ShieldCheck /> Direct from Sivakasi</span>
-                <span><Sparkles /> Factory pricing</span>
-                <span><MessageCircle /> Quick WhatsApp ordering</span>
-              </div>
+            )}
+          </div>
+          <div className="rt-container rt-hero-cta-bar">
+            <div className="rt-hero-cta-copy">
+              <span className="rt-hero-cta-kicker"><Sparkles aria-hidden="true" /> {offerTitle}</span>
+              {banner.headline?.trim() && <strong>{banner.headline.trim()}</strong>}
+              {banner.subheadline?.trim() && <p>{banner.subheadline.trim()}</p>}
+              {!banner.headline?.trim() && !banner.subheadline?.trim() && <p>Factory-direct crackers from Sivakasi for your celebration.</p>}
             </div>
-            <div className="rt-hero-badge" aria-hidden="true">
-              <span>DIRECT FROM</span>
-              <strong>SIVAKASI</strong>
-              <small>Quality • Value • Fast Dispatch</small>
+            <div className="rt-hero-actions">
+              <button onClick={handleShopNow} className="rt-btn rt-btn-primary" type="button">
+                {banner.button_text?.trim() || 'Shop Now'} <ArrowRight aria-hidden="true" />
+              </button>
+              <a
+                className="rt-btn rt-btn-whatsapp"
+                href={whatsappHref || '/contact'}
+                target={whatsappHref ? '_blank' : undefined}
+                rel={whatsappHref ? 'noreferrer' : undefined}
+                onClick={(event) => { if (!whatsappHref) { event.preventDefault(); onNavigate('contact'); } }}
+              >
+                <MessageCircle aria-hidden="true" /> Order on WhatsApp
+              </a>
             </div>
           </div>
         </>
@@ -124,14 +162,7 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
           </div>
         </>
       )}
-
-      {banners.length > 1 && (
-        <div className="rt-hero-dots" aria-label="Promotional banners">
-          {banners.map((item, itemIndex) => (
-            <button key={item.id} onClick={() => setIndex(itemIndex)} aria-label={`Show promotion ${itemIndex + 1}`} className={itemIndex === index ? 'active' : ''} />
-          ))}
-        </div>
-      )}
     </section>
+
   );
 };

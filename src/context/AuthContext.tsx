@@ -128,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let current = getSession();
       try {
         const callbackUrl = new URL(window.location.href);
-        const callbackError = callbackUrl.searchParams.get('error_description') || callbackUrl.searchParams.get('error');
+        const callbackError = callbackUrl.searchParams.get('error_description') || callbackUrl.searchParams.get('error') || callbackUrl.searchParams.get('error_code');
         const authorizationCode = callbackUrl.searchParams.get('code');
 
         if (callbackError) {

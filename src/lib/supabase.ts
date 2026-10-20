@@ -281,6 +281,19 @@ export async function authProviderUrl(provider: AuthOAuthProviderName, redirectT
   url.searchParams.set('redirect_to', redirectTo);
   url.searchParams.set('code_challenge', challenge);
   url.searchParams.set('code_challenge_method', 's256');
+
+  // Explicitly request the identity scopes Supabase needs for these providers.
+  // Azure's documented flow requires `email`; Facebook needs email permission
+  // configured on its app as well as requested here. Google receives the normal
+  // OpenID profile scopes explicitly so provider consent/claims are predictable.
+  const providerScopes: Partial<Record<AuthOAuthProviderName, string>> = {
+    azure: 'email',
+    facebook: 'email',
+    google: 'openid email profile',
+  };
+  const scopes = providerScopes[provider];
+  if (scopes) url.searchParams.set('scopes', scopes);
+
   return url.toString();
 }
 

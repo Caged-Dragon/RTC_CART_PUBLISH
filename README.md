@@ -89,7 +89,7 @@ The customer-facing Best Sellers route is `/best-sellers`. The home page feature
 - The database currently has no `image_url` for active categories and combo packs. The UI therefore prefers any configured database image URL and uses bundled reference/category artwork only as a fallback. Product images also prefer their database URL fields.
 - Static UI copy and decorative icons remain frontend presentation because the current schema does not have a dedicated editable content field for every label. Product names/prices/stock, categories, curated picks, banner content, combo data/prices, company details, merchant rules, and page theme values are read from Supabase.
 - The connected Supabase management interface successfully queried the live database. The sandbox used for this handoff could not make outbound REST HTTP requests, so the included `check:db` command still needs to be run from your network before claiming a browser-to-REST smoke test passed.
-- No production schema, product, price, banner, combo, or other database records were written or changed as part of this UI update.
+- The UI update did not change catalogue, price, offer, or combo records. Separately, the live migration `20261020142658_protect_admin_business_profile_phones` was applied: it clears `phone` and `phone_number` from active admin/business-linked customer profiles and keeps those fields empty on future Auth-triggered profile sync. The store's public company/WhatsApp contacts were not changed.
 
 ## Native Supabase customer authentication
 
@@ -106,3 +106,12 @@ OAuth buttons are discovered from enabled provider flags returned by Supabase Au
 - On application startup, a stored Supabase session is validated against Auth; expiring tokens are refreshed and storage changes are synchronized across tabs. Customer passwords remain exclusively managed by Supabase Auth.
 - The homepage shows a preview of active categories; View All Categories opens `/categories`, which displays the full active category list and counts derived from live products. Category cards open `/products?category=<category-name>`; the filter is case-insensitive, shareable and preserved across refresh/back-forward navigation.
 - See `LOGIN_AND_CATEGORY_UX_UPDATE.md` for details and validation notes.
+
+
+## OAuth provider and image visibility follow-up (2026-10-20)
+
+- Supabase Auth logs from the live project showed `/settings` responding with HTTP 200 and `/authorize` redirects for Facebook, Google, and Azure (Microsoft). Those entries show OAuth initiation works; `auth.identities` still has only email identities, so a successful provider return is not verified. Provider client credentials and app-console redirect URLs remain the likely items to confirm after the redirect.
+- The active database banner's desktop/mobile storage objects have identical ETag and size (369,427 bytes), indicating the same landscape creative was configured for mobile. The homepage now uses a capped, non-cropping frame, an unobtrusive blurred backdrop, and falls back to the bundled portrait-safe mobile artwork if the mobile image is landscape or fails to load.
+- The navbar and account logo use a wider frame with `object-fit: contain` and the bundled full-wordmark fallback. A direct `/categories` route is now resolved to the category directory, not the product list.
+- Validation for the last update: `npm test` reports 8 passing tests; CSS parses; TypeScript/TSX transpile syntax checks report zero errors across 64 files. `npm run build` could not run in this sandbox because `node_modules/.bin/vite` is unavailable; run `npm ci && npm run build` in the project environment.
+- See `AUTH_OAUTH_AUDIT_2026-10-20.md` for live project checks and the provider-console checklist.

@@ -146,10 +146,18 @@ test('OAuth buttons follow enabled Supabase Auth providers and sign-in uses PKCE
   assert.equal(authorizeUrl.searchParams.get('provider'), 'google');
   assert.equal(authorizeUrl.searchParams.get('redirect_to'), 'https://shop.example.test/login');
   assert.equal(authorizeUrl.searchParams.get('code_challenge_method'), 's256');
+  assert.equal(authorizeUrl.searchParams.get('scopes'), 'openid email profile');
   assert.ok(authorizeUrl.searchParams.get('code_challenge'));
   const pkce = JSON.parse(storage.getItem('redthunder_supabase_oauth_pkce_v1'));
   assert.ok(pkce.verifier);
   assert.equal(pkce.provider, 'google');
+
+  const facebookUrl = new URL(await auth.authProviderUrl('facebook', 'https://shop.example.test/login'));
+  assert.equal(facebookUrl.searchParams.get('scopes'), 'email');
+  const microsoftUrl = new URL(await auth.authProviderUrl('azure', 'https://shop.example.test/login'));
+  assert.equal(microsoftUrl.searchParams.get('scopes'), 'email');
+  // Restore Google's verifier before the exchange under test.
+  storage.setItem('redthunder_supabase_oauth_pkce_v1', JSON.stringify(pkce));
 
   const session = await auth.authExchangeCodeForSession('test-authorization-code');
   assert.equal(session.user.id, 'auth-user-test');
