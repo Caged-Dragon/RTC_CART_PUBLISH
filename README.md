@@ -127,3 +127,9 @@ OAuth buttons are discovered from enabled provider flags returned by Supabase Au
 - `npm test`: 8 passed. A full `npm run lint` / production build remains unverified here because React, Vite and several package dependencies are not installed in this workspace. Run `npm ci`, `npm run lint`, and `npm run build` before deploying.
 
 See `LOGO_BANNER_VISIBILITY_FIX.md` for the latest logo-source verification and non-overlapping banner layout correction.
+
+## Responsive homepage banner update (20 October 2026)
+
+The database-driven homepage hero now uses a responsive frame sized from both the viewport width and viewport height. The full uploaded banner artwork is contained without stretching or cropping, with the blurred image backdrop filling any unused side space. The Shop Now / WhatsApp action row remains in normal document flow below the artwork and cannot cover it. On small screens, the hero uses a portrait-safe mobile image when the configured mobile upload is still landscape.
+
+After installing project dependencies, run `npm test` to verify the banner regression checks alongside the existing tests. The complete Vite build should be run locally with `npm run build` before deployment.

@@ -25,15 +25,16 @@ test('navbar and account screen preserve the unmodified Supabase company logo', 
   assert.match(css, /\.rt-auth-brand-logo\s*\{[^}]*object-fit:\s*contain;[^}]*object-position:\s*center;[^}]*filter:\s*none;/s);
 });
 
-test('database banners retain their natural ratio and CTA bar cannot cover the artwork', () => {
+test('database banners scale responsively without fixed image ratios or CTA overlap', () => {
   const css = read('src/index.css');
   const banner = read('src/components/HomeBanner.tsx');
-  assert.match(banner, /style=\{\{\s*aspectRatio:\s*bannerAspectRatio\s*\}\}/);
-  assert.match(banner, /setBannerAspectRatio\(`\$\{image\.naturalWidth\} \/ \$\{image\.naturalHeight\}`\)/);
+  assert.doesNotMatch(banner, /bannerAspectRatio|setBannerAspectRatio/);
+  assert.doesNotMatch(banner, /style=\{\{\s*aspectRatio:/);
   assert.match(css, /\.rt-hero-dynamic\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/s);
-  assert.match(css, /\.rt-hero-composed\s*\{[^}]*height:\s*auto;[^}]*max-height:\s*none;/s);
+  assert.match(css, /\.rt-hero-composed\s*\{[^}]*height:\s*min\(56\.25vw,\s*68svh,\s*680px\);[^}]*min-height:\s*260px;[^}]*max-height:\s*680px;/s);
+  assert.match(css, /@media \(max-width:\s*640px\)\s*\{\s*\.rt-hero-composed\s*\{[^}]*height:\s*min\(136vw,\s*72svh,\s*620px\);/s);
   assert.match(css, /\.rt-hero-composed-image\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s);
-  assert.match(css, /\.rt-hero-composed-image img\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*object-fit:\s*contain;/s);
+  assert.match(css, /\.rt-hero-composed-image img\s*\{[^}]*width:\s*auto;[^}]*height:\s*auto;[^}]*max-width:\s*100%;[^}]*max-height:\s*100%;[^}]*object-fit:\s*contain;/s);
   assert.match(css, /\.rt-hero-cta-bar\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*2;[^}]*flex:\s*0 0 auto;/s);
   assert.match(banner, /className="rt-hero-composed-backdrop"/);
   assert.match(banner, /onError=\{\(\) => setBannerImageFailed\(true\)\}/);

@@ -2030,8 +2030,8 @@ html.dark .rt-categories-hero p, html.dark .rt-categories-results-heading p, htm
   .rt-auth-brand-mark { width: 72px; height: 72px; min-width: 72px; }
 }
 
-/* Preserve each uploaded banner's natural aspect ratio and keep CTAs in normal document flow.
-   The WhatsApp/shop row must never cover the bottom of the banner art. */
+/* Responsive database banner: size the viewport frame responsively and contain the full artwork.
+   The CTA row remains a separate flex item below the image, never an overlay. */
 .rt-hero-dynamic {
   display: flex;
   flex-direction: column;
@@ -2045,8 +2045,10 @@ html.dark .rt-categories-hero p, html.dark .rt-categories-results-heading p, htm
   display: block;
   flex: 0 0 auto;
   width: 100%;
-  height: auto;
-  max-height: none;
+  /* The banner changes with both viewport width and height rather than using a fixed pixel height. */
+  height: min(56.25vw, 68svh, 680px);
+  min-height: 260px;
+  max-height: 680px;
   overflow: hidden;
   isolation: isolate;
   line-height: 0;
@@ -2071,17 +2073,18 @@ html.dark .rt-categories-hero p, html.dark .rt-categories-results-heading p, htm
   position: absolute;
   z-index: 1;
   inset: 0;
-  display: block;
+  display: grid;
+  place-items: center;
   width: 100%;
   height: 100%;
   overflow: hidden;
 }
 .rt-hero-composed-image img {
   display: block;
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  max-height: none;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
   object-position: center;
   background: transparent;
@@ -2101,5 +2104,12 @@ html.dark .rt-categories-hero p, html.dark .rt-categories-results-heading p, htm
   .rt-hero-cta-bar { align-items: flex-start; flex-direction: column; }
 }
 @media (max-width: 640px) {
-  .rt-hero-composed { height: auto; max-height: none; }
+  .rt-hero-composed {
+    height: min(136vw, 72svh, 620px);
+    min-height: 260px;
+    max-height: 620px;
+  }
+}
+@media (max-width: 360px) {
+  .rt-hero-composed { min-height: 230px; }
 }

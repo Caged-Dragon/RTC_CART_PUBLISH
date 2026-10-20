@@ -34,9 +34,6 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
   const [index, setIndex] = useState(0);
   const [bannerImageFailed, setBannerImageFailed] = useState(false);
   const [useReferenceMobileArt, setUseReferenceMobileArt] = useState(false);
-  const [bannerAspectRatio, setBannerAspectRatio] = useState(() =>
-    window.matchMedia('(max-width: 640px)').matches ? '428 / 582' : '16 / 9'
-  );
 
   useEffect(() => {
     let active = true;
@@ -94,7 +91,7 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
       {banner ? (
         <>
           {/* Uploaded banners are complete artwork. Keep their natural ratio: no crop, stretch, or overlaid text. */}
-          <div className="rt-hero-composed" style={{ aspectRatio: bannerAspectRatio }}>
+          <div className="rt-hero-composed">
             <img className="rt-hero-composed-backdrop" src={background} alt="" aria-hidden="true" decoding="async" />
             <picture className="rt-hero-composed-image">
               <source media="(max-width: 640px)" srcSet={mobileBackground} />
@@ -105,11 +102,8 @@ export const HomeBanner: React.FC<HomeBannerProps> = ({ onNavigate }) => {
                 decoding="async"
                 onLoad={(event) => {
                   const image = event.currentTarget;
-                  // Size the frame to this exact asset ratio, so the CTA row always follows the whole image
-                  // rather than covering or cropping its bottom edge.
-                  if (image.naturalWidth > 0 && image.naturalHeight > 0) {
-                    setBannerAspectRatio(`${image.naturalWidth} / ${image.naturalHeight}`);
-                  }
+                  // The frame size is controlled by responsive CSS (viewport width and height),
+                  // while the image is contained inside it so every part of the artwork remains visible.
                   // Avoid using a landscape creative as a phone banner when the database's mobile URL
                   // accidentally points to the same artwork as the desktop image.
                   if (window.matchMedia('(max-width: 640px)').matches && image.naturalWidth > image.naturalHeight * 1.25) {
