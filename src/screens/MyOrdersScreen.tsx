@@ -22,7 +22,7 @@ import { useAuth } from '../context/AuthContext';
 interface MyOrdersScreenProps {
   onNavigate: (screen: ScreenId) => void;
   onOpenInvoice: () => void;
-  onSelectTrackingId: (id: string) => void;
+  onSelectTrackingId: (id: string, guestTrackingToken?: string) => void;
 }
 
 export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
@@ -37,7 +37,8 @@ export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
   const [selectedOrderForReview, setSelectedOrderForReview] = useState<string>('');
 
   const handleTrack = (orderId: string) => {
-    onSelectTrackingId(orderId);
+    const selectedOrder = ordersHistory.find((item) => item.orderId === orderId);
+    onSelectTrackingId(orderId, selectedOrder?.guestTrackingToken);
     onNavigate('tracker');
   };
 
@@ -66,7 +67,7 @@ export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
             Customer Dashboard
           </h1>
           <p className="text-xs sm:text-sm text-stone-300 dark:text-stone-300 light:text-stone-600 mt-1 max-w-2xl leading-relaxed">
-            Manage your festive cracker orders, track Sivakasi lorry parcel consignments, view invoices, and share your experience with the community.
+            Review existing order records, track previously confirmed consignments, and access account support. New online fireworks orders are not accepted on this website.
           </p>
         </div>
 
@@ -114,7 +115,7 @@ export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
               <Package className="w-10 h-10 text-stone-600 mx-auto" />
               <p className="text-stone-400">
                 {isAuthenticated
-                  ? "You don't have any past orders yet. Your orders will appear here after checkout."
+                  ? "You don't have any past orders yet. Historical order records, if any, appear here. This website no longer accepts online fireworks orders."
                   : 'Sign in to view orders linked to your RT Crackers customer account.'}
               </p>
               <div className="flex flex-wrap justify-center gap-2">
@@ -220,7 +221,7 @@ export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
                       className="px-3.5 py-1.5 rounded-xl bg-stone-800 dark:bg-stone-800 light:bg-stone-100 hover:bg-stone-700 text-stone-200 dark:text-stone-200 light:text-stone-800 border border-stone-700 dark:border-stone-700 light:border-stone-300 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
-                      <span>1-Click Re-Order</span>
+                      <span>Copy Items to Shortlist</span>
                     </button>
 
                     <button
@@ -233,7 +234,7 @@ export const MyOrdersScreen: React.FC<MyOrdersScreenProps> = ({
 
                     <a
                       href={`https://wa.me/${STORE_INFO.phone}?text=${encodeURIComponent(
-                        `Hello RedThunder Sivakasi, I am asking about my order #${order.orderId}.`
+                        `Hello RedThunder Crackers. I have a question about an existing historical order. Please tell me how to share the reference details securely.`
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"

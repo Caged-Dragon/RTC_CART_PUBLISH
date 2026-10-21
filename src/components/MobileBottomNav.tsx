@@ -16,13 +16,14 @@ export const MobileBottomNav: React.FC<Props> = ({ currentScreen, setCurrentScre
     setCurrentScreen('products');
     if (mode === 'category') setShopIntent({ type: 'category', value: 'All' });
     if (mode === 'search') {
+      setShopIntent({ type: 'all' });
       setShopIntent({ type: 'search', value: '' });
       window.setTimeout(() => window.dispatchEvent(new CustomEvent('rt-focus-product-search')), 120);
     }
   };
   return (
     <nav className="rt-mobile-bottom-nav" aria-label="Mobile navigation">
-      <button className={currentScreen === 'intro' ? 'active' : ''} onClick={() => setCurrentScreen('intro')}><Home /><span>Home</span></button>
+      {currentScreen === 'intro' && <button className="active" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}><Home /><span>Top</span></button>}
       <button className={currentScreen === 'products' ? 'active' : ''} onClick={() => goShop('search')}><Search /><span>Search</span></button>
       <button className={currentScreen === 'categories' ? 'active' : ''} onClick={() => setCurrentScreen('categories')}><Grid2X2 /><span>Categories</span></button>
       <button className={currentScreen === 'cart' ? 'active' : ''} onClick={() => setCurrentScreen('cart')}><span className="rt-mobile-cart-icon"><ShoppingCart />{totalBoxes > 0 && <b>{totalBoxes}</b>}</span><span>Cart</span></button>

@@ -1,11 +1,32 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { dbSelectSWR } from '../lib/supabase';
+import { dbSelect } from '../lib/supabase';
 
-export type CustomerCategory = { category_id: string; category_name: string; slug: string; description?: string | null; details?: string | null; image_url?: string | null; display_order: number; is_active: boolean };
-const CategoriesContext = createContext<{categories: CustomerCategory[]; isLoading: boolean; refreshCategories:()=>Promise<void>}|undefined>(undefined);
-export const CategoriesProvider: React.FC<{children:React.ReactNode}> = ({children}) => {
-  const [categories,setCategories]=useState<CustomerCategory[]>([]); const [isLoading,setIsLoading]=useState(true);
-  const refreshCategories=useCallback(async()=>{setIsLoading(true);try{await dbSelectSWR<CustomerCategory>('product_categories','select=*&is_active=eq.true&order=display_order.asc,category_name.asc',(rows)=>{setCategories(rows);setIsLoading(false);});}catch(e){console.error('Failed to load categories',e);setCategories([]);}finally{setIsLoading(false);}},[]);
-  useEffect(()=>{refreshCategories()},[refreshCategories]); return <CategoriesContext.Provider value={{categories,isLoading,refreshCategories}}>{children}</CategoriesContext.Provider>;
+export type CustomerCategory = {
+  category_id: string; category_name: string; slug: string; description?: string | null;
+  details?: string | null; image_url?: string | null; display_order: number; is_active: boolean;
 };
-export const useCategories=()=>{const c=useContext(CategoriesContext);if(!c)throw new Error('useCategories must be used inside CategoriesProvider');return c;};
+type CategoriesContextValue = { categories: CustomerCategory[]; isLoading: boolean; error: string | null; refreshCategories: () => Promise<void> };
+const CategoriesContext = createContext<CategoriesContextValue | undefined>(undefined);
+const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+export const CategoriesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [categories, setCategories] = useState<CustomerCategory[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const refreshCategories = useCallback(async () => {
+    setIsLoading(true); setError(null);
+    try {
+      const rows = await dbSelect<any>('product_categories', 'select=category_id,category_name,parent_category_id,is_active&is_active=eq.true&order=category_name.asc');
+      setCategories(rows.map((row) => ({
+        category_id: String(row.category_id), category_name: String(row.category_name || 'Other'), slug: slugify(String(row.category_name || 'other')),
+        description: null, details: null, image_url: null, display_order: 0, is_active: Boolean(row.is_active),
+      })));
+    } catch (cause) {
+      console.error('Failed to load live categories from Supabase', cause);
+      setError(cause instanceof Error ? cause.message : 'Categories could not be refreshed.');
+    } finally { setIsLoading(false); }
+  }, []);
+  useEffect(() => { void refreshCategories(); }, [refreshCategories]);
+  return <CategoriesContext.Provider value={{ categories, isLoading, error, refreshCategories }}>{children}</CategoriesContext.Provider>;
+};
+export const useCategories = () => { const context = useContext(CategoriesContext); if (!context) throw new Error('useCategories must be used inside CategoriesProvider'); return context; };

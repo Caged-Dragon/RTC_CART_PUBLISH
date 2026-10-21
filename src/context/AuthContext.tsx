@@ -74,19 +74,19 @@ function isDefinitiveAuthFailure(error: unknown): boolean {
 }
 
 
-function profileFromRow(row: any, authUser?: SupabaseAuthUser | null): UserProfile {
+function profileFromRow(row: any, authUser?: SupabaseAuthUser | null, address?: any): UserProfile {
   const metadata = authUser?.user_metadata || {};
   return {
-    id: row?.id,
+    id: row?.customer_id == null ? undefined : String(row.customer_id),
     authUserId: row?.auth_user_id || authUser?.id,
-    name: row?.full_name || [row?.first_name, row?.last_name].filter(Boolean).join(' ') || metadata.full_name || '',
-    phone: row?.phone_number || row?.phone || metadata.phone || authUser?.phone || '',
-    email: row?.email || authUser?.email || '',
-    city: row?.city || metadata.city || undefined,
-    address: row?.street_address || row?.address_line_1,
-    district: row?.district,
-    state: row?.state,
-    pincode: row?.pincode || row?.postal_code,
+    name: row?.customer_name || metadata.full_name || metadata.name || '',
+    phone: row?.customer_mobile || metadata.phone || authUser?.phone || '',
+    email: row?.customer_email || authUser?.email || '',
+    city: address?.city || metadata.city || undefined,
+    address: address?.address_line_1 || undefined,
+    district: address?.district || undefined,
+    state: address?.state || undefined,
+    pincode: address?.postal_code || undefined,
   };
 }
 
@@ -103,21 +103,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshProfile = async (sessionOverride?: SupabaseSession | null) => {
     const activeSession = sessionOverride === undefined ? session : sessionOverride;
-    if (!activeSession?.user?.id) {
-      setUser(null);
-      return;
-    }
+    if (!activeSession?.user?.id) { setUser(null); return; }
     try {
-      // This is profile data only. Credentials/passwords are exclusively handled by Supabase Auth.
-      const rows = await dbSelect<any>(
-        'users',
-        `select=*&auth_user_id=eq.${encodeURIComponent(activeSession.user.id)}&limit=1`,
+      const rows = await dbSelect<any>('customers',
+        `select=customer_id,customer_name,customer_email,customer_mobile,auth_user_id,status&auth_user_id=eq.${encodeURIComponent(activeSession.user.id)}&limit=1`,
         activeSession.access_token,
       );
-      setUser(rows[0] ? profileFromRow(rows[0], activeSession.user) : profileFromRow({}, activeSession.user));
+      const customer = rows[0];
+      if (!customer) { setUser(profileFromRow({}, activeSession.user)); return; }
+      let address: any = null;
+      try {
+        const addressRows = await dbSelect<any>('customer_addresses',
+          `select=address_line_1,city,district,state,postal_code,is_default,is_active&customer_id=eq.${encodeURIComponent(String(customer.customer_id))}&is_active=eq.true&order=is_default.desc&limit=1`,
+          activeSession.access_token,
+        );
+        address = addressRows[0] || null;
+      } catch (addressError) {
+        // Profile access remains useful even before an address has been saved.
+        console.warn('Customer profile address could not be loaded.', addressError);
+      }
+      setUser(profileFromRow(customer, activeSession.user, address));
     } catch (error) {
       console.error('Customer profile load failed', error);
-      // Auth may succeed even if optional profile reads are briefly unavailable.
       setUser(profileFromRow({}, activeSession.user));
     }
   };
@@ -417,23 +424,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateProfile = async (details: Partial<UserProfile>) => {
     if (!session?.user?.id) throw new Error('Please sign in first.');
-    const rows = await dbSelect<any>('users', `select=id&auth_user_id=eq.${encodeURIComponent(session.user.id)}&limit=1`, session.access_token);
+    const rows = await dbSelect<any>('customers',
+      `select=customer_id&auth_user_id=eq.${encodeURIComponent(session.user.id)}&limit=1`, session.access_token);
     if (!rows[0]) throw new Error('Customer profile not found. Supabase Auth is active, but the linked customer profile is missing.');
-    const body: any = {};
-    if (details.name !== undefined) {
-      body.full_name = details.name;
-      const [first, ...rest] = details.name.trim().split(/\s+/);
-      body.first_name = first || null;
-      body.last_name = rest.join(' ') || null;
+    const customerId = String(rows[0].customer_id);
+    const customerBody: Record<string, unknown> = {};
+    if (details.name !== undefined) customerBody.customer_name = details.name.trim();
+    if (details.phone !== undefined) customerBody.customer_mobile = details.phone.replace(/\D/g, '').slice(-10);
+    if (details.email !== undefined) customerBody.customer_email = details.email.trim().toLowerCase();
+    if (Object.keys(customerBody).length) {
+      const updated = await dbUpdate<any>('customers', `customer_id=eq.${encodeURIComponent(customerId)}`, customerBody, session.access_token);
+      if (updated[0]) setUser((current) => ({ ...(current || profileFromRow(updated[0], session.user)), ...profileFromRow(updated[0], session.user) }));
     }
-    if (details.phone !== undefined) { body.phone = details.phone; body.phone_number = details.phone; }
-    if (details.city !== undefined) body.city = details.city;
-    if (details.address !== undefined) { body.street_address = details.address; body.address_line_1 = details.address; }
-    if (details.district !== undefined) body.district = details.district;
-    if (details.state !== undefined) body.state = details.state;
-    if (details.pincode !== undefined) { body.pincode = details.pincode; body.postal_code = details.pincode; }
-    const updated = await dbUpdate<any>('users', `id=eq.${rows[0].id}`, body, session.access_token);
-    if (updated[0]) setUser(profileFromRow(updated[0], session.user));
+
+    const addressDetails = details.address !== undefined || details.city !== undefined || details.district !== undefined || details.state !== undefined || details.pincode !== undefined;
+    if (addressDetails) {
+      const addressRows = await dbSelect<any>('customer_addresses',
+        `select=address_id&customer_id=eq.${encodeURIComponent(customerId)}&is_active=eq.true&order=is_default.desc&limit=1`, session.access_token);
+      if (!addressRows[0]) {
+        throw new Error('Save a delivery address in your account first, then edit it here. The database does not have an existing address row to update.');
+      }
+      const addressBody: Record<string, unknown> = {};
+      if (details.address !== undefined) addressBody.address_line_1 = details.address;
+      if (details.city !== undefined) addressBody.city = details.city;
+      if (details.district !== undefined) addressBody.district = details.district;
+      if (details.state !== undefined) addressBody.state = details.state;
+      if (details.pincode !== undefined) addressBody.postal_code = details.pincode;
+      await dbUpdate<any>('customer_addresses', `address_id=eq.${encodeURIComponent(String(addressRows[0].address_id))}`, addressBody, session.access_token);
+    }
+    await refreshProfile(session);
   };
 
   return (

@@ -1,6 +1,6 @@
 import { SupabaseSession } from './supabase';
 
-const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || 'https://ypmiinmkyvzdpakbkers.supabase.co').replace(/\/$/, '');
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || 'https://hhbpyxhtksgbkaigeutl.supabase.co').replace(/\/$/, '');
 const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/transactional-email`;
 
 export type TransactionalEmailPayload =

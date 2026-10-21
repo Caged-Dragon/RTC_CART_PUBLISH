@@ -1,11 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   ArrowRight,
   BadgeCheck,
   Box,
   CheckCircle2,
   Flame,
-  Gift,
   Headphones,
   MessageCircle,
   PackageCheck,
@@ -20,7 +19,6 @@ import type { ScreenId } from '../components/Navbar';
 import { useStore } from '../context/StoreContext';
 import { useProducts } from '../context/ProductsContext';
 import { useCategories } from '../context/CategoriesContext';
-import { useComboPacks } from '../context/ComboPacksContext';
 import { setShopIntent } from '../utils/shopNavigation';
 import { getExactProductImage } from '../utils/productImages';
 import { ProductCard } from '../components/ProductCard';
@@ -40,28 +38,17 @@ const benefits = [
   { icon: BadgeCheck, title: 'Direct from Sivakasi', text: 'Factory-source pricing' },
   { icon: WalletCards, title: 'Competitive Pricing', text: 'Clear catalogue rates' },
   { icon: Box, title: 'Wide Product Range', text: 'Browse the live catalogue' },
-  { icon: MessageCircle, title: 'Easy Ordering', text: 'Online & WhatsApp' },
-  { icon: ShieldCheck, title: 'Secure Order Flow', text: 'Checkout through the site' },
+  { icon: MessageCircle, title: 'Direct Support', text: 'Phone, WhatsApp & email' },
+  { icon: ShieldCheck, title: 'Product Information', text: 'Browse catalogue details and contact sales directly' },
   { icon: Headphones, title: 'Customer Support', text: 'Quick assistance' },
 ];
-
-const budgetTierLabels: Record<string, string> = {
-  STARTER: 'Starter Collection',
-  FAMILY: 'Family Collection',
-  FESTIVAL: 'Festival Collection',
-  PREMIUM: 'Premium Collection',
-  GRAND: 'Grand Collection',
-};
-
-const money = (value: number) => `₹${Math.round(value).toLocaleString('en-IN')}`;
 
 export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectProduct }) => {
   const { storeInfo } = useStore();
   const whatsappHref = getWhatsAppHref(storeInfo.phone);
-  const { products, isLoading: productsLoading } = useProducts();
+  const { products, isLoading: productsLoading, error: productsError, refreshProducts } = useProducts();
   const { picks: homepagePicks, isLoading: picksLoading } = useHomepagePicks();
-  const { categories, isLoading: categoriesLoading } = useCategories();
-  const { combos, isLoading: combosLoading } = useComboPacks();
+  const { categories, isLoading: categoriesLoading, error: categoriesError, refreshCategories } = useCategories();
   const { totalBoxes, subtotal } = useCart();
   const bestSellerProducts = useMemo(() => getBestSellerProducts(products, homepagePicks), [products, homepagePicks]);
   const homeBestSellerCount = getHomepageBestSellerCount(bestSellerProducts.length);
@@ -88,40 +75,29 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectPr
       });
   }, [categories, products]);
 
-  const budgetOptions = useMemo(() => {
-    const tiers = new Map<string, { prices: number[]; count: number }>();
-    combos.forEach((combo) => {
-      if (!combo.budgetTier || !Number.isFinite(combo.calculatedPrice) || combo.calculatedPrice <= 0) return;
-      const current = tiers.get(combo.budgetTier) || { prices: [], count: 0 };
-      current.prices.push(combo.calculatedPrice);
-      current.count += 1;
-      tiers.set(combo.budgetTier, current);
-    });
-    const order = ['STARTER', 'FAMILY', 'FESTIVAL', 'PREMIUM', 'GRAND'];
-    return [...tiers.entries()]
-      .sort(([a], [b]) => order.indexOf(a) - order.indexOf(b))
-      .map(([tier, data]) => ({
-        tier,
-        title: budgetTierLabels[tier] || tier,
-        low: Math.min(...data.prices),
-        high: Math.max(...data.prices),
-        count: data.count,
-      }));
-  }, [combos]);
-
-  const openBudgetTier = (tier: string) => {
-    onNavigate('combos');
-    // The combo catalogue owns filtering; notify it after the route transition and preserve a shareable URL.
-    const url = new URL(window.location.href);
-    url.searchParams.set('budget_tier', tier);
-    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
-    window.dispatchEvent(new CustomEvent('rt-combo-budget-tier', { detail: tier }));
-  };
-
   const browseProducts = () => {
     setShopIntent({ type: 'all' });
     onNavigate('products');
   };
+
+  useEffect(() => {
+    const root = document.querySelector<HTMLElement>('.rt-home');
+    if (!root) return;
+    const sections = Array.from(root.children).filter((element): element is HTMLElement =>
+      element instanceof HTMLElement && element.tagName.toLowerCase() === 'section'
+    );
+    sections.forEach((section) => section.classList.add('rt-home-reveal'));
+    // Never leave sections hidden in older browsers or when the visitor requests reduced motion.
+    if (typeof IntersectionObserver === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      sections.forEach((section) => section.classList.add('is-visible'));
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => entry.target.classList.toggle('is-visible', entry.isIntersecting));
+    }, { threshold: 0.06, rootMargin: '-24px 0px -24px 0px' });
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div className="rt-home">
@@ -172,7 +148,10 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectPr
               ))}
           </div>
           {!categoriesLoading && categoryCards.length === 0 && (
-            <p className="rt-section-empty-note">Categories will appear here when active category records are available.</p>
+            <div className="rt-section-empty-note" role="status">
+              <p>{categoriesError || 'Categories will appear here when active category records are available.'}</p>
+              {categoriesError && <button type="button" onClick={() => { void refreshCategories(); }}>Retry categories <ArrowRight aria-hidden="true" /></button>}
+            </div>
           )}
         </div>
       </section>
@@ -200,19 +179,21 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectPr
                 <span>Featuring {Math.round((homeBestSellers.length / bestSellerProducts.length) * 100)}% of our best-seller collection on the home page.</span>
                 <button onClick={() => onNavigate('bestsellers')}>Explore all {bestSellerProducts.length} <ArrowRight aria-hidden="true" /></button>
               </div>
-              <div className="rt-product-grid rt-home-bestseller-grid">
-                {homeBestSellers.map((product) => {
-                  const pick = bestSellerPicksByProduct.get(product.dbId || String(product.id));
-                  return (
-                    <div className="rt-home-bestseller-card-wrap" key={product.dbId || product.id}>
-                      <div className="rt-home-bestseller-card-meta">
-                        <span>{pick?.badgeText || 'Customer Favourite'}</span>
-                        <small>{pick?.customerLabel || (product.popular ? 'Popular pick' : 'Best seller')}</small>
+              <div className="rt-home-bestseller-scroller" role="region" aria-label="Swipe through best sellers" tabIndex={0}>
+                <div className="rt-product-grid rt-home-bestseller-grid">
+                  {homeBestSellers.map((product) => {
+                    const pick = bestSellerPicksByProduct.get(product.dbId || String(product.id));
+                    return (
+                      <div className="rt-home-bestseller-card-wrap" key={product.dbId || product.id}>
+                        <div className="rt-home-bestseller-card-meta">
+                          <span>{pick?.badgeText || 'Customer Favourite'}</span>
+                          <small>{pick?.customerLabel || (product.popular ? 'Popular pick' : 'Best seller')}</small>
+                        </div>
+                        <ProductCard product={product} compact onViewDetails={() => onSelectProduct(product)} />
                       </div>
-                      <ProductCard product={product} compact onViewDetails={() => onSelectProduct(product)} />
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
               <div className="rt-home-bestseller-footer">
                 <span>Looking for something specific? The full best-seller page includes search, category filters, and price sorting.</span>
@@ -221,39 +202,8 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectPr
             </>
           ) : (
             <div className="rt-best-empty" role="status">
-              <div><strong>Best sellers are being prepared.</strong><p>Popular products will appear here as the live catalogue publishes best-seller flags or curated customer picks.</p></div>
-              <button onClick={() => onNavigate('bestsellers')}>Open Best Sellers <ArrowRight aria-hidden="true" /></button>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="rt-section rt-section-white" aria-labelledby="budget-heading">
-        <div className="rt-container">
-          <div className="rt-section-heading">
-            <div><span className="rt-kicker">Choose a curated collection</span><h2 id="budget-heading">Shop by Budget</h2></div>
-            <span className="rt-heading-note">Collections and pricing are sourced from published combo data.</span>
-          </div>
-          {combosLoading && budgetOptions.length === 0 ? (
-            <div className="rt-budget-grid" aria-busy="true" aria-label="Loading budget collections">
-              {Array.from({ length: 4 }, (_, index) => <div className="rt-budget-placeholder" key={index} />)}
-            </div>
-          ) : budgetOptions.length ? (
-            <div className="rt-budget-grid">
-              {budgetOptions.map((budget) => (
-                <button className="rt-budget-card" key={budget.tier} onClick={() => openBudgetTier(budget.tier)}>
-                  <span>{budget.low === budget.high ? money(budget.low) : `${money(budget.low)}–${money(budget.high)}`}</span>
-                  <strong>{budget.title}</strong>
-                  <small>{budget.count} published combo{budget.count === 1 ? '' : 's'}</small>
-                  <em>Explore Collection <ArrowRight aria-hidden="true" /></em>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="rt-budget-empty">
-              <Gift aria-hidden="true" />
-              <div><strong>Budget collections are not configured yet.</strong><p>Publish combo packs with budget tiers in the existing catalogue to show live collection cards here.</p></div>
-              <button className="rt-btn rt-btn-outline" onClick={() => onNavigate('combos')}>Explore Combos <ArrowRight aria-hidden="true" /></button>
+              <div><strong>{productsError ? 'The catalogue could not be refreshed.' : 'Best sellers are being prepared.'}</strong><p>{productsError || 'Popular products will appear here as the live catalogue publishes best-seller flags or curated customer picks.'}</p></div>
+              {productsError ? <button type="button" onClick={() => { void refreshProducts(); }}>Retry catalogue <ArrowRight aria-hidden="true" /></button> : <button onClick={() => onNavigate('bestsellers')}>Open Best Sellers <ArrowRight aria-hidden="true" /></button>}
             </div>
           )}
         </div>
@@ -266,15 +216,15 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectPr
       <section className="rt-section rt-how-section" aria-labelledby="how-heading">
         <div className="rt-container">
           <div className="rt-section-heading">
-            <div><span className="rt-kicker">Simple & transparent</span><h2 id="how-heading">How to Order</h2></div>
+            <div><span className="rt-kicker">Simple & transparent</span><h2 id="how-heading">How to Enquire</h2></div>
             {totalBoxes > 0 && <div className="rt-cart-summary-inline"><ShoppingCart aria-hidden="true" /> {totalBoxes} items · ₹{subtotal.toLocaleString('en-IN')}</div>}
           </div>
           <div className="rt-how-grid">
             {[
               { icon: Search, step: '01', title: 'Select Products', text: 'Browse the catalogue and choose your crackers.' },
-              { icon: ShoppingCart, step: '02', title: 'Add to Cart', text: 'Set quantities and review your live cart.' },
-              { icon: CheckCircle2, step: '03', title: 'Confirm Order', text: 'Enter delivery details and submit your order.' },
-              { icon: Truck, step: '04', title: 'Delivery / Dispatch', text: `Orders are reviewed for dispatch from ${storeInfo.city}.` },
+              { icon: ShoppingCart, step: '02', title: 'Build a Shortlist', text: 'Keep a local product reference list while browsing; it does not reserve products.' },
+              { icon: CheckCircle2, step: '03', title: 'Contact Sales', text: 'Ask about stock, location, transport and lawful offline terms.' },
+              { icon: Truck, step: '04', title: 'Permitted Fulfilment', text: 'Any permitted offline transaction is agreed directly with the licensed business.' },
             ].map(({ icon: Icon, step, title, text }, index) => (
               <div className="rt-how-step" key={step}>
                 <span className="rt-step-number">{step}</span>
@@ -288,13 +238,56 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectPr
         </div>
       </section>
 
-      <section className="rt-service-strip" aria-label="Service information">
+      <section className="rt-service-strip" aria-label="Service shortcuts">
         <div className="rt-container rt-service-grid">
-          <div><PackageCheck aria-hidden="true" /><strong>Delivery Information</strong><small>Review destination and policy details</small></div>
-          <div><WalletCards aria-hidden="true" /><strong>Payment Options</strong><small>Confirmed by the booking team</small></div>
-          <div><ShieldCheck aria-hidden="true" /><strong>Product Information</strong><small>Refer to catalogue details</small></div>
-          <div><MessageCircle aria-hidden="true" /><strong>WhatsApp Support</strong><small>Quick assistance</small></div>
-          <div><Box aria-hidden="true" /><strong>Wide Range</strong><small>Browse active catalogue items</small></div>
+          <button type="button" onClick={() => onNavigate('transport')} aria-label="Open delivery and transport information"><PackageCheck aria-hidden="true" /><strong>Delivery Information</strong><small>Review destination and policy details</small></button>
+          <button type="button" onClick={() => onNavigate('cart')} aria-label="Open product enquiry shortlist"><WalletCards aria-hidden="true" /><strong>Sales Enquiry</strong><small>Review catalogue shortlist and contact support</small></button>
+          <button type="button" onClick={browseProducts} aria-label="Browse products for product information"><ShieldCheck aria-hidden="true" /><strong>Product Information</strong><small>Refer to catalogue details</small></button>
+          <button type="button" onClick={() => onNavigate('whatsapp')} aria-label="Open WhatsApp sales support"><MessageCircle aria-hidden="true" /><strong>WhatsApp Support</strong><small>Prepare a message for assistance</small></button>
+          <button type="button" onClick={browseProducts} aria-label="Browse the full product range"><Box aria-hidden="true" /><strong>Wide Range</strong><small>Browse active catalogue items</small></button>
+        </div>
+      </section>
+
+      <section className="rt-home-directory-section rt-section rt-section-white" aria-labelledby="home-directory-heading">
+        <div className="rt-container">
+          <div className="rt-section-heading">
+            <div><span className="rt-kicker">Everything in one place</span><h2 id="home-directory-heading">Explore All Website Sections</h2></div>
+            <span className="rt-heading-note">Direct links to catalogue, existing account records, support and store information.</span>
+          </div>
+          <div className="rt-home-directory-grid">
+            {[
+              { screen: 'products', title: 'All Products', text: 'Search the live catalogue and filter by price, category and stock.' },
+              { screen: 'categories', title: 'Categories', text: 'Browse crackers by product type.' },
+              { screen: 'bestsellers', title: 'Best Sellers', text: 'Explore customer picks and popular products.' },
+              { screen: 'table', title: 'Price List', text: 'View the current catalogue rates.' },
+              { screen: 'combos', title: 'Combo Packs', text: 'Compare curated celebration bundles.' },
+              { screen: 'gift-boxes', title: 'Gift Boxes', text: 'Browse festive gifting options.' },
+              { screen: 'cart', title: 'Product Shortlist', text: 'Review selected products and reference subtotal; no order is submitted.' },
+              { screen: 'myorders', title: 'Historical Orders', text: 'Review existing order records only; new online orders are not accepted.' },
+              { screen: 'tracker', title: 'Track Existing Order', text: 'Check status of previously recorded orders.' },
+              { screen: 'whatsapp', title: 'Contact Sales', text: 'Open general WhatsApp, phone and email support.' },
+              { screen: 'mail', title: 'Email Sales', text: 'Contact sales with general product questions.' },
+              { screen: 'auth', title: 'Sign In / Account', text: 'Access your customer account.' },
+              { screen: 'transport', title: 'Transport & Freight', text: 'Review delivery and freight information.' },
+              { screen: 'safety', title: 'Safety Guide', text: 'Read fireworks handling and supervision guidance.' },
+              { screen: 'reviews', title: 'Customer Reviews', text: 'Read and submit customer feedback.' },
+              { screen: 'about', title: 'About RT Crackers', text: 'Learn about our factory-direct catalogue.' },
+              { screen: 'contact', title: 'Contact & Support', text: 'Get help with general product information.' },
+            ].map((item) => (
+              <button
+                type="button"
+                className="rt-home-directory-card"
+                key={item.screen}
+                onClick={() => {
+                  if (item.screen === 'products') setShopIntent({ type: 'all' });
+                  onNavigate(item.screen as ScreenId);
+                }}
+              >
+                <span><strong>{item.title}</strong><small>{item.text}</small></span>
+                <ArrowRight aria-hidden="true" />
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -305,7 +298,7 @@ export const IntroScreen: React.FC<IntroScreenProps> = ({ onNavigate, onSelectPr
             <h2>Browse the RedThunder catalogue and curated collections.</h2>
           </div>
           <div className="rt-hero-actions">
-            <button onClick={browseProducts} className="rt-btn rt-btn-primary">Shop Now <ArrowRight aria-hidden="true" /></button>
+            <button onClick={browseProducts} className="rt-btn rt-btn-primary">Browse Catalogue <ArrowRight aria-hidden="true" /></button>
             <a className="rt-btn rt-btn-whatsapp" href={whatsappHref || '/contact'} target={whatsappHref ? '_blank' : undefined} rel={whatsappHref ? 'noreferrer' : undefined} onClick={(event) => { if (!whatsappHref) { event.preventDefault(); onNavigate('contact'); } }}><MessageCircle aria-hidden="true" /> WhatsApp Us</a>
           </div>
         </div>

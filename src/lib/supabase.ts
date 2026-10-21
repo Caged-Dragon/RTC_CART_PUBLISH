@@ -15,7 +15,7 @@ export type SupabaseAuthUser = {
   identities?: Array<{ id: string; provider?: string }> | null;
 };
 
-const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || 'https://ypmiinmkyvzdpakbkers.supabase.co').replace(/\/$/, '');
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || 'https://hhbpyxhtksgbkaigeutl.supabase.co').replace(/\/$/, '');
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 export const SESSION_STORAGE_KEY = 'redthunder_supabase_session_v1';
 

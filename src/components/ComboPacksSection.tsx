@@ -111,7 +111,7 @@ export const ComboPacksSection: React.FC<ComboPacksSectionProps> = ({ onNavigate
                     onClick={() => setSelectedCombo(combo)}
                     aria-label={`View ${combo.name}`}
                   >
-                    {image ? <img src={image} alt={combo.name} loading="lazy" decoding="async" onError={(event) => { const fallback = heroProduct ? getExactProductImage({ ...heroProduct, imageUrl: undefined }) : getReferenceComboImage(combo.name, combo.budgetTier); if (fallback && !event.currentTarget.src.endsWith(fallback)) event.currentTarget.src = fallback; else event.currentTarget.hidden = true; }} /> : <div className="rt-combo-image-placeholder"><Package /></div>}
+                    {image ? <img src={image} alt={`${combo.name} – Makka & Wheat brand Sivakasi cracker combo pack`} loading="lazy" decoding="async" onError={(event) => { const fallback = heroProduct ? getExactProductImage({ ...heroProduct, imageUrl: undefined }) : getReferenceComboImage(combo.name, combo.budgetTier); if (fallback && !event.currentTarget.src.endsWith(fallback)) event.currentTarget.src = fallback; else event.currentTarget.hidden = true; }} /> : <div className="rt-combo-image-placeholder"><Package /></div>}
                     {combo.budgetTier && <span className="rt-combo-pack-budget">{combo.budgetTier}</span>}
                     {combo.badgeText && <span className="rt-combo-pack-items">{combo.badgeText}</span>}
                   </button>
@@ -183,7 +183,7 @@ export const ComboPacksSection: React.FC<ComboPacksSectionProps> = ({ onNavigate
               </div>
               <div className="rt-combo-modal-summary"><strong>{money(selectedCombo.calculatedPrice)}</strong><span>{selectedCombo.distinctProducts} products · {selectedCombo.totalUnits} total units</span><span>{selectedCombo.pricingMode === 'MANUAL' ? 'Database-managed manual price' : 'Calculated from live product rates'}</span></div>
               <div className="rt-combo-detail-list">
-                {selectedCombo.items.map((item) => <div className={`rt-combo-detail-row ${item.product.stockStatus === 'OUT_OF_STOCK' ? 'is-unavailable' : ''}`} key={item.itemId}><ProductImage product={item.product} alt="" /><div><strong>{item.quantity}× {item.product.name}</strong><span>{item.itemLabel || item.product.category} · {item.product.unit}</span>{item.itemNote && <small>{item.itemNote}</small>}</div><b>{money(item.product.rate * item.quantity)}</b></div>)}
+                {selectedCombo.items.map((item) => <div className={`rt-combo-detail-row ${item.product.stockStatus === 'OUT_OF_STOCK' ? 'is-unavailable' : ''}`} key={item.itemId}><ProductImage product={item.product} alt={`${item.product.name} – Makka & Wheat brand Sivakasi crackers`} /><div><strong>{item.quantity}× {item.product.name}</strong><span>{item.itemLabel || item.product.category} · {item.product.unit}</span>{item.itemNote && <small>{item.itemNote}</small>}</div><b>{money(item.product.rate * item.quantity)}</b></div>)}
               </div>
               <div className="rt-combo-modal-actions"><button className="rt-btn rt-btn-outline" onClick={() => setSelectedCombo(null)}>Continue browsing</button><button className="rt-btn rt-btn-primary" disabled={!selectedCombo.isAvailable} onClick={() => { addCombo(selectedCombo); setSelectedCombo(null); }}>{selectedCombo.isAvailable ? 'Add this combo to cart' : 'Combo temporarily unavailable'} <ShoppingBag size={16} /></button></div>
             </div>

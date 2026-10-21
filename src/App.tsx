@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { ArrowRight, ShoppingBag } from 'lucide-react';
 import { CartProvider, useCart } from './context/CartContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -6,7 +6,7 @@ import { StoreProvider } from './context/StoreContext';
 import { AuthProvider } from './context/AuthContext';
 import { ProductsProvider } from './context/ProductsContext';
 import { HomepagePicksProvider } from './context/HomepagePicksContext';
-import { ComboPacksProvider } from './context/ComboPacksContext';
+import { ComboPacksProvider, useComboPacks } from './context/ComboPacksContext';
 import { ToastProvider } from './context/ToastContext';
 import { Navbar, ScreenId } from './components/Navbar';
 import { CartDrawer } from './components/CartDrawer';
@@ -40,6 +40,7 @@ import { ProductDetailScreen } from './screens/ProductDetailScreen';
 import { useProducts } from './context/ProductsContext';
 import { BestSellersScreen } from './screens/BestSellersScreen';
 import type { Product } from './data/products';
+import { useToast } from './context/ToastContext';
 
 
 const SCREEN_PATHS: Record<ScreenId, string> = {
@@ -48,10 +49,10 @@ const SCREEN_PATHS: Record<ScreenId, string> = {
   safety: '/safety', reviews: '/reviews', about: '/about', contact: '/contact',
 };
 const SCREEN_TITLES: Record<ScreenId, string> = {
-  intro: 'RT Crackers (Makka & Wheat) – Factory-Direct Sivakasi Crackers 2026',
-  products: 'All Crackers with Photos & Rates | RT Crackers', categories: 'Shop by Category | RT Crackers', bestsellers: 'Best Sellers | RT Crackers – Customer Favourites', table: '2026 Price List | RT Crackers', cart: 'Your Cart | RT Crackers',
-  myorders: 'My Orders | RT Crackers', tracker: 'Track Your Order | RT Crackers', whatsapp: 'Order on WhatsApp | RT Crackers',
-  mail: 'Email Your Bill | RT Crackers', auth: 'Sign In | RT Crackers', combos: 'Combo Packs | RT Crackers', 'gift-boxes': 'Gift Boxes | RT Crackers',
+  intro: 'Sivakasi Crackers Catalogue 2026 | RedThunder Crackers',
+  products: 'All Crackers with Photos & Rates | RT Crackers', categories: 'Shop by Category | RT Crackers', bestsellers: 'Popular Catalogue Highlights | RT Crackers', table: '2026 Price List | RT Crackers', cart: 'Product Enquiry List | RT Crackers',
+  myorders: 'My Orders | RT Crackers', tracker: 'Track Your Order | RT Crackers', whatsapp: 'Contact Sales | RT Crackers',
+  mail: 'Contact Sales by Email | RT Crackers', auth: 'Sign In | RT Crackers', combos: 'Combo Packs | RT Crackers', 'gift-boxes': 'Gift Boxes | RT Crackers',
   transport: 'Transport & Freight | RT Crackers', safety: 'Cracker Safety Guide | RT Crackers', reviews: 'Customer Reviews | RT Crackers', about: 'About RT Crackers | Sivakasi Factory Direct', contact: 'Contact RT Crackers | WhatsApp & Support',
 };
 function screenFromPath(pathname: string): ScreenId {
@@ -65,8 +66,11 @@ function screenFromPath(pathname: string): ScreenId {
 function StorefrontApp() {
   const { ordersHistory, totalBoxes, subtotal, setIsCartOpen } = useCart();
   const { products } = useProducts();
+  const { combos, isLoading: combosLoading } = useComboPacks();
+  const { showToast } = useToast();
+  const handoffProcessed = useRef(false);
 
-  const [selectedTrackingId, setSelectedTrackingId] = useState('RT-2026-1088');
+  const [selectedTrackingOrder, setSelectedTrackingOrder] = useState<{ id: string; token?: string } | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(() => {
     const match = window.location.pathname.match(/^\/product\/(\d+)$/);
     return match ? Number(match[1]) : null;
@@ -100,38 +104,109 @@ function StorefrontApp() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
+  // Legacy showcase query parameters are treated as catalogue search hints only; never auto-add items.
+  useEffect(() => {
+    if (handoffProcessed.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    const comboId = params.get('combo_id') || params.get('combo');
+    const query = params.get('q');
+    const category = params.get('category');
+    if (!id && !comboId && !query && !category) return;
+    if (id && products.length === 0) return;
+    if (comboId && combosLoading) return;
+    handoffProcessed.current = true;
+
+    if (comboId) {
+      const combo = combos.find((item) => item.id === comboId || item.slug === comboId || item.comboCode === comboId);
+      window.history.replaceState({}, '', '/combos');
+      setScreenRaw('combos');
+      showToast({ type: 'info', title: 'Combo catalogue opened', message: combo ? `${combo.shortTitle || combo.name} details are available to review. No order was created.` : 'Review the current combo catalogue. No items were added.' });
+      return;
+    }
+
+    const search = new URL('/products', window.location.origin);
+    if (query) search.searchParams.set('q', query);
+    else if (category) search.searchParams.set('category', category);
+    else if (id) {
+      const found = products.find((item: any) => String(item.id) === id || String(item.dbId || '') === id || String(item.skuCode || '') === id);
+      search.searchParams.set('q', found?.name || id);
+    }
+    window.history.replaceState({}, '', `${search.pathname}${search.search}`);
+    setScreenRaw('products');
+    showToast({ type: 'info', title: 'Catalogue opened', message: 'This link opens product information only; nothing was added to an order.' });
+  }, [products, combos, combosLoading, showToast]);
+
   useEffect(() => {
     const product = selectedProductId ? products.find((item) => item.id === selectedProductId) : undefined;
-    const title = product ? `${product.name} | RT Crackers` : selectedProductId ? 'Product Details | RT Crackers' : SCREEN_TITLES[currentScreen];
+    const title = product ? `${product.name} | ${product.category} | RedThunder Crackers` : selectedProductId ? 'Product Details | RedThunder Crackers' : SCREEN_TITLES[currentScreen];
     const descriptions: Record<ScreenId, string> = {
-      intro: 'Explore factory-direct crackers from Sivakasi, customer favourites, gift boxes, combo packs and the latest RT Crackers catalogue.',
-      products: 'Browse the RT Crackers full product catalogue with live rates, categories, product details and quick add-to-cart ordering.',
-      categories: 'Browse all active RT Crackers product categories, see how many products each contains and open the shop with the category filter applied.',
-      bestsellers: 'Shop RT Crackers best sellers and customer favourites. Search products, filter by category, compare prices and add favourites to your cart.',
+      intro: 'Browse the RedThunder Crackers catalogue from Rajukanna Fireworks, Sivakasi. This website is for product information and does not accept online fireworks orders.',
+      products: 'Browse the RedThunder Crackers product catalogue with live rates, categories, product details and a local shortlist. Online fireworks orders are not accepted.',
+      categories: 'Browse active RedThunder product categories and open catalogue results filtered by category.',
+      bestsellers: 'Explore RedThunder catalogue highlights, search products and compare listed prices.',
       table: 'View the RT Crackers product price list and current catalogue rates.',
-      cart: 'Review your RT Crackers cart, quantities and order total before checkout.',
-      myorders: 'View your RT Crackers orders and order details.', tracker: 'Track an RT Crackers order and review dispatch information.',
-      whatsapp: 'Contact RT Crackers and prepare your order through WhatsApp.', mail: 'Prepare and share your RT Crackers order bill by email.',
+      cart: 'Review a local product shortlist and reference subtotal; no online order or payment is submitted.',
+      myorders: 'View your RT Crackers orders and order details.', tracker: 'Review status details for existing orders and previously confirmed consignments.',
+      whatsapp: 'Open WhatsApp support for general product questions; cart details are not sent.', mail: 'Find the official sales email and contact details for general product questions.',
       auth: 'Sign in to your RT Crackers account to manage your orders and profile.', combos: 'Explore RT Crackers combo packs and curated celebration bundles.',
       'gift-boxes': 'Browse RT Crackers gift boxes for family celebrations and festive occasions.', transport: 'Read RT Crackers delivery, transport and freight information.',
       safety: 'Read important fireworks handling, supervision and safety guidance before use.', reviews: 'Read and submit customer feedback for RT Crackers.',
-      about: 'Learn about RT Crackers and our Sivakasi factory-direct catalogue.', contact: 'Contact RT Crackers for order assistance, product questions and customer support.',
+      about: 'Learn about RT Crackers and our Sivakasi catalogue.', contact: 'Contact RedThunder for catalogue and general support questions.',
     };
     const description = product
-      ? `${product.name} from RT Crackers. View catalogue pricing, pack details and availability, then add it to your cart.`
+      ? `${product.name} (${product.unit}) in the ${product.category} category of the RedThunder Crackers catalogue from Sivakasi. Listed catalogue rate ₹${Number(product.rate).toLocaleString('en-IN')}; confirm current details with the business. No online fireworks orders or payments are accepted.`
       : descriptions[currentScreen];
     const canonicalUrl = new URL(product ? `/product/${product.id}` : SCREEN_PATHS[currentScreen], window.location.origin).href;
+    const keywordMap: Record<ScreenId, string> = {
+      intro: 'RedThunder Crackers, Sivakasi crackers catalogue 2026, Makka and Wheat brand, Rajukanna Fireworks',
+      products: 'Sivakasi crackers catalogue, RedThunder Crackers product list, Makka and Wheat brand catalogue',
+      categories: 'Sivakasi crackers categories, RedThunder Crackers catalogue',
+      bestsellers: 'RedThunder Crackers popular catalogue highlights, Sivakasi product list',
+      table: 'RedThunder Crackers 2026 price list, Sivakasi catalogue rates',
+      cart: 'RedThunder product shortlist', myorders: 'RedThunder account order history', tracker: 'RedThunder previous order tracking',
+      whatsapp: 'RedThunder Crackers product enquiries, WhatsApp support', mail: 'RedThunder Crackers sales email and support',
+      auth: 'RedThunder customer account sign in', combos: 'RedThunder catalogue', 'gift-boxes': 'Makka and Wheat brand catalogue highlights',
+      transport: 'Sivakasi crackers transport information, Tamil Nadu delivery policy', safety: 'fireworks safety guide, safe fireworks handling',
+      reviews: 'RedThunder Crackers customer feedback', about: 'Rajukanna Fireworks Sivakasi, Makka and Wheat brand', contact: 'RedThunder Crackers contact, Sivakasi support',
+    };
+    // Only pages that are useful public catalogue/information pages should be indexable.
+    // Account, list, tracking, email/WhatsApp, and unverified combo/review surfaces stay noindex.
+    const publicIndexableScreens = new Set<ScreenId>(['intro', 'products', 'categories', 'bestsellers', 'table', 'transport', 'safety', 'about', 'contact']);
+    const indexable = product ? true : (!selectedProductId && publicIndexableScreens.has(currentScreen));
+    const productKeywords = product ? `${product.name}, ${product.category}, Sivakasi crackers catalogue, RedThunder Crackers, Makka and Wheat brand` : keywordMap[currentScreen];
     document.title = title;
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) canonical.href = canonicalUrl;
     const descriptionTag = document.querySelector<HTMLMetaElement>('meta[name="description"]');
     if (descriptionTag) descriptionTag.content = description;
+    const keywordsTag = document.querySelector<HTMLMetaElement>('meta[name="keywords"]');
+    if (keywordsTag) keywordsTag.content = productKeywords;
+    let robotsTag = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
+    if (!robotsTag) { robotsTag = document.createElement('meta'); robotsTag.name = 'robots'; document.head.appendChild(robotsTag); }
+    robotsTag.content = indexable ? 'index,follow,max-image-preview:large' : 'noindex,follow';
+    let webpageSchema = document.querySelector<HTMLScriptElement>('#rt-prerendered-page-schema, #rt-dynamic-webpage-schema');
+    if (!webpageSchema) { webpageSchema = document.createElement('script'); webpageSchema.id = 'rt-dynamic-webpage-schema'; webpageSchema.type = 'application/ld+json'; document.head.appendChild(webpageSchema); }
+    webpageSchema.textContent = JSON.stringify({ '@context': 'https://schema.org', '@type': product ? 'Product' : 'WebPage', name: title, description, url: canonicalUrl, ...(product?.imageUrl ? { image: product.imageUrl } : {}), ...(product ? { sku: String(product.id), brand: { '@type': 'Brand', name: 'Makka & Wheat' }, manufacturer: { '@type': 'Organization', '@id': 'https://rtcrackers.com/#business', name: 'Rajukanna Fireworks' }, category: product.category } : {}), ...(!product ? { about: { '@type': 'Organization', '@id': 'https://rtcrackers.com/#business' } } : {}) });
     const ogTitle = document.querySelector<HTMLMetaElement>('meta[property="og:title"]');
     if (ogTitle) ogTitle.content = title;
     const ogDescription = document.querySelector<HTMLMetaElement>('meta[property="og:description"]');
     if (ogDescription) ogDescription.content = description;
     const ogUrl = document.querySelector<HTMLMetaElement>('meta[property="og:url"]');
     if (ogUrl) ogUrl.content = canonicalUrl;
+    const ogType = document.querySelector<HTMLMetaElement>('meta[property="og:type"]');
+    if (ogType) ogType.content = product ? 'product' : 'website';
+    const twitterTitle = document.querySelector<HTMLMetaElement>('meta[name="twitter:title"]');
+    if (twitterTitle) twitterTitle.content = title;
+    const twitterDescription = document.querySelector<HTMLMetaElement>('meta[name="twitter:description"]');
+    if (twitterDescription) twitterDescription.content = description;
+    const twitterUrl = document.querySelector<HTMLMetaElement>('meta[name="twitter:url"]');
+    if (twitterUrl) twitterUrl.content = canonicalUrl;
+    const socialImage = product?.imageUrl ? new URL(product.imageUrl, window.location.origin).href : 'https://cart.rtcrackers.com/rt-icon-512.png';
+    const ogImage = document.querySelector<HTMLMetaElement>('meta[property="og:image"]');
+    if (ogImage) ogImage.content = socialImage;
+    const twitterImage = document.querySelector<HTMLMetaElement>('meta[name="twitter:image"]');
+    if (twitterImage) twitterImage.content = socialImage;
   }, [currentScreen, selectedProductId, products]);
   useEffect(() => {
     const themePage = currentScreen === 'intro' || currentScreen === 'about' || currentScreen === 'contact' ? 'home' : currentScreen === 'myorders' ? 'orders' : currentScreen === 'mail' ? 'mailing' : currentScreen === 'combos' ? 'gift-boxes' : currentScreen; window.dispatchEvent(new CustomEvent('rt-theme-page', { detail: themePage }));
@@ -212,12 +287,16 @@ function StorefrontApp() {
           <MyOrdersScreen
             onNavigate={setCurrentScreen}
             onOpenInvoice={() => setIsInvoiceOpen(true)}
-            onSelectTrackingId={(id) => setSelectedTrackingId(id)}
+            onSelectTrackingId={(id, token) => setSelectedTrackingOrder({ id, token })}
           />
         )}
 
         {currentScreen === 'tracker' && (
-          <TrackerScreen />
+          <TrackerScreen
+            key={selectedTrackingOrder?.id || 'direct-tracker'}
+            initialOrderId={selectedTrackingOrder?.id}
+            initialTrackingToken={selectedTrackingOrder?.token}
+          />
         )}
 
         {currentScreen === 'whatsapp' && (
@@ -259,7 +338,7 @@ function StorefrontApp() {
       </main>
 
       {/* Footer */}
-      <Footer onOpenSafety={() => setIsSafetyOpen(true)} onNavigate={setCurrentScreen} />
+      <Footer onOpenSafety={() => setIsSafetyOpen(true)} onNavigate={setCurrentScreen} currentScreen={currentScreen} />
 
       <MobileBottomNav currentScreen={currentScreen} setCurrentScreen={setCurrentScreen} />
 

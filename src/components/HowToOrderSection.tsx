@@ -10,23 +10,23 @@ export const HowToOrderSection: React.FC = () => {
   const steps = [
     {
       num: '01',
-      title: 'Select Products & Quantities',
-      desc: 'Add items from our 127 catalog products or use the quick price sheet matrix. Your cart calculates the total instantly.',
+      title: 'Browse Products',
+      desc: 'Explore catalogue entries and use a local shortlist as a reference. Nothing is ordered or reserved.',
     },
     {
       num: '02',
-      title: 'Send Order on WhatsApp',
-      desc: 'Click "Order on WhatsApp". Your complete itemized list and delivery location will be formatted and sent to ' + STORE_INFO.phoneDisplay + '.',
+      title: 'Contact Sales',
+      desc: 'Use the published phone, WhatsApp or email contacts for general catalogue and product questions.',
     },
     {
       num: '03',
-      title: 'Quotation & Stock Confirmation',
-      desc: 'Our Sivakasi dispatch desk verifies stock availability and shares exact transport lorry parcel charges for your city.',
+      title: 'Direct Discussion',
+      desc: 'Ask the licensed business about current product information, stock, transport and applicable legal requirements.',
     },
     {
       num: '04',
-      title: 'Payment & Fast Sivakasi Dispatch',
-      desc: 'Upon payment receipt, your goods are packed securely in wooden/corrugated containers and dispatched via registered transport.',
+      title: 'Permitted Offline Fulfilment',
+      desc: 'After discussing stock and lawful fulfilment directly with sales, any permitted arrangements are confirmed securely in wooden/corrugated containers and dispatched via registered transport.',
     },
   ];
 
@@ -37,13 +37,13 @@ export const HowToOrderSection: React.FC = () => {
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-14">
           <span className="text-xs font-bold uppercase tracking-widest text-amber-400">
-            Official Booking Guide
+            Product Enquiry Guide
           </span>
           <h2 className="font-display text-3xl sm:text-4xl font-extrabold text-white mt-2">
-            How to Order from Sivakasi
+            How to Enquire about Sivakasi Products
           </h2>
           <p className="text-stone-400 text-sm mt-3">
-            Simple, transparent, and direct booking via WhatsApp Business at <strong className="text-white">{STORE_INFO.phoneDisplay}</strong>.
+            For general product information, contact support at <strong className="text-white">{STORE_INFO.phoneDisplay}</strong>.
           </p>
         </div>
 
@@ -82,7 +82,7 @@ export const HowToOrderSection: React.FC = () => {
               <div className="flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 <span>
-                  <strong className="text-white">Payment & Dispatch:</strong> Against payment receipt only, crackers will be dispatched directly from Sivakasi factory godown.
+                  <strong className="text-white">Payment & Dispatch:</strong> This website does not accept online orders or payments. For product information, contact the licensed sales team and discuss any fulfilment that is permitted by current law.
                 </span>
               </div>
               <div className="flex items-start gap-2.5">

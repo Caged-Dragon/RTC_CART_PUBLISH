@@ -29,9 +29,11 @@ test('HTML entry and service worker are not cached across deployments', () => {
   assert.match(sw, /wantsCss[\s\S]*type\.includes\('text\/css'\)/);
 });
 
-test('PWA install listener leaves browser native install prompt unprevented', () => {
+test('PWA install button defers and then invokes the native install prompt', () => {
   const prompt = read('src/components/PwaInstallPrompt.tsx');
   assert.match(prompt, /beforeinstallprompt/);
-  assert.doesNotMatch(prompt, /event\.preventDefault\(\)/);
-  assert.doesNotMatch(prompt, /\.prompt\(\)/);
+  assert.match(prompt, /event\.preventDefault\(\)/);
+  assert.match(prompt, /setDeferredPrompt\(event as BeforeInstallPromptEvent\)/);
+  assert.match(prompt, /await deferredPrompt\.prompt\(\)/);
+  assert.match(prompt, /appinstalled/);
 });

@@ -69,7 +69,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
       { id: 'intro', label: 'Home' },
       { id: 'products', label: 'Shop' },
       { id: 'categories', label: 'Categories' },
-      { id: 'combos', label: 'Combos' },
       { id: 'bestsellers', label: 'Best Sellers' },
       { id: 'about', label: 'About Us' },
       { id: 'safety', label: 'Safety' },
@@ -88,11 +87,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
     event?.preventDefault();
     handleNav('products');
     const value = query.trim();
+    // A global search starts a fresh catalogue query rather than silently keeping old filters.
+    setShopIntent({ type: 'all' });
     setShopIntent({ type: 'search', value });
     const url = new URL(window.location.href);
     url.pathname = '/products';
+    url.searchParams.delete('category');
+    url.searchParams.delete('budget');
     if (value) url.searchParams.set('q', value); else url.searchParams.delete('q');
-    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+    window.history.replaceState({ ...(window.history.state || {}), screen: 'products' }, '', `${url.pathname}${url.search}`);
   };
 
   const selectCategory = (categoryName: string) => {
@@ -101,30 +104,35 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
   };
 
   const showBestSellers = () => handleNav('bestsellers');
-
+  const visiblePrimaryNav = currentScreen === 'intro' ? primaryNav : primaryNav.filter((item) => item.id !== 'intro');
+  const brandMark = (
+    <span className="rt-brand-mark">
+      <img
+        src={storeInfo.logoUrl || exactCompanyLogoFallback}
+        alt={storeInfo.name || 'RedThunder Crackers'}
+        decoding="async"
+        onError={(event) => {
+          const image = event.currentTarget;
+          if (image.dataset.localFallback !== 'true') {
+            image.dataset.localFallback = 'true';
+            image.src = exactCompanyLogoFallback;
+          }
+        }}
+      />
+    </span>
+  );
 
   return (
     <header data-rtc-component="navbar" className="rt-navbar">
       <div className="rt-nav-top">
         <div className="rt-container rt-nav-top-inner">
-          <button className="rt-brand" onClick={() => handleNav('intro')} aria-label="RedThunder Crackers home">
-            <span className="rt-brand-mark">
-              <img
-                src={storeInfo.logoUrl || exactCompanyLogoFallback}
-                alt={storeInfo.name || 'RedThunder Crackers'}
-                decoding="async"
-                onError={(event) => {
-                  const image = event.currentTarget;
-                  // This fallback is byte-for-byte identical to the current public logo object in Supabase Storage.
-                  // Never replace the database logo based on its aspect ratio or crop/edit the source image.
-                  if (image.dataset.localFallback !== 'true') {
-                    image.dataset.localFallback = 'true';
-                    image.src = exactCompanyLogoFallback;
-                  }
-                }}
-              />
-            </span>
-          </button>
+          {currentScreen === 'intro' ? (
+            <button className="rt-brand" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Back to top of RT Crackers home page">
+              {brandMark}
+            </button>
+          ) : (
+            <div className="rt-brand" aria-label={storeInfo.name || 'RedThunder Crackers'}>{brandMark}</div>
+          )}
 
           <form className="rt-nav-search" onSubmit={submitSearch} role="search">
             <Search aria-hidden="true" />
@@ -173,7 +181,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
       <div className="rt-nav-bottom">
         <div className="rt-container rt-nav-bottom-inner">
           <nav className="rt-primary-nav" aria-label="Main navigation">
-            {primaryNav.map((item) => {
+            {visiblePrimaryNav.map((item) => {
               const isCategory = item.label === 'Categories';
               const isBest = item.label === 'Best Sellers';
               const active = isCategory ? (categoriesOpen || currentScreen === 'categories') : currentScreen === item.id;
@@ -246,7 +254,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
               <button type="submit">Search</button>
             </form>
             <div className="rt-mobile-grid">
-              <button onClick={() => handleNav('intro')}><Home /> Home</button>
+              {currentScreen === 'intro' && <button onClick={() => { setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}><Home /> Back to top</button>}
               <button onClick={() => { handleNav('products'); setShopIntent({ type: 'all' }); }}><Grid2X2 /> Shop</button>
               <button onClick={() => handleNav('categories')}><Grid2X2 /> Categories</button>
               <button onClick={showBestSellers}><Gift /> Best Sellers</button>
@@ -258,8 +266,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentScreen, setCurrentScreen,
               <button onClick={() => handleNav('about')}><ShieldCheck /> About Us</button>
               <button onClick={() => handleNav('contact')}><PhoneCall /> Contact</button>
               <button onClick={() => handleNav('table')}><Grid2X2 /> Price List</button>
-              <button onClick={() => handleNav('whatsapp')}><MessageCircle /> WhatsApp Order</button>
-              <button onClick={() => handleNav('mail')}><PhoneCall /> Email Bill</button>
+              <button onClick={() => handleNav('whatsapp')}><MessageCircle /> Contact Sales</button>
+              <button onClick={() => handleNav('mail')}><PhoneCall /> Email Sales</button>
               <button onClick={() => handleNav('transport')}><PackageSearch /> Transport</button>
               <button onClick={() => handleNav('reviews')}><ShieldCheck /> Reviews</button>
               <button onClick={() => { onOpenSafety(); setMenuOpen(false); }}><ShieldCheck /> Safety</button>

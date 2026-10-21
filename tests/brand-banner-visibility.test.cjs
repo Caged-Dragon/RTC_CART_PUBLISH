@@ -16,7 +16,9 @@ test('navbar and account screen preserve the unmodified Supabase company logo', 
 
   // This digest matches the eTag returned by Supabase Storage for company_profile.logo_url.
   assert.equal(localLogoHash, dbLogoEtag);
-  assert.match(read('src/context/StoreContext.tsx'), /logoUrl:\s*r\.logo_url\s*\|\|\s*FALLBACK_INFO\.logoUrl/);
+  assert.match(read('src/context/StoreContext.tsx'), /dbSelect<any>\('web_media'.*media_url,media_name,alt_text/s);
+  assert.match(read('src/context/StoreContext.tsx'), /domain=eq\.cart\.rtcrackers\.com/);
+  assert.match(read('src/context/StoreContext.tsx'), /logoUrl:\s*media\?\.media_url\s*\|\|\s*FALLBACK_INFO\.logoUrl/);
   assert.match(navbar, /src=\{storeInfo\.logoUrl\s*\|\|\s*exactCompanyLogoFallback\}/);
   assert.match(auth, /src=\{storeInfo\.logoUrl\s*\|\|\s*exactCompanyLogoFallback\}/);
   assert.doesNotMatch(navbar, /naturalWidth\s*\/\s*image\.naturalHeight\s*<\s*2/);
@@ -25,18 +27,21 @@ test('navbar and account screen preserve the unmodified Supabase company logo', 
   assert.match(css, /\.rt-auth-brand-logo\s*\{[^}]*object-fit:\s*contain;[^}]*object-position:\s*center;[^}]*filter:\s*none;/s);
 });
 
-test('database banners scale responsively without fixed image ratios or CTA overlap', () => {
+test('database banners use an accessible fixed 4:3 carousel while keeping the complete creative visible', () => {
   const css = read('src/index.css');
   const banner = read('src/components/HomeBanner.tsx');
-  assert.match(banner, /bannerAspectRatio/);
-  assert.match(banner, /setBannerAspectRatio\(\`\$\{image\.naturalWidth\} \/ \$\{image\.naturalHeight\}\`\)/);
-  assert.match(banner, /style=\{\{\s*aspectRatio:\s*bannerAspectRatio\s*\}\}/);
-  assert.match(css, /\.rt-hero-dynamic\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;/s);
-  assert.match(css, /\.rt-hero-composed\s*\{[^}]*width:\s*100%;[^}]*height:\s*auto !important;[^}]*min-height:\s*0 !important;[^}]*max-height:\s*none !important;/s);
-  assert.doesNotMatch(css.slice(css.lastIndexOf('/* Fluid database banner:')), /height:\s*min\(|max-height:\s*min\(/);
-  assert.match(css, /\.rt-hero-composed-image\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s);
-  assert.match(css, /\.rt-hero-composed-image img\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*object-fit:\s*contain;/s);
-  assert.match(css, /\.rt-hero-cta-bar\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*2;[^}]*flex:\s*0 0 auto;/s);
+  const functionalPolish = css.slice(css.indexOf('Functional polish:'));
+  assert.match(banner, /style=\{\{\s*aspectRatio:\s*'4 \/ 3'\s*\}\}/);
+  assert.doesNotMatch(banner, /bannerAspectRatio|setBannerAspectRatio/);
   assert.match(banner, /className="rt-hero-composed-backdrop"/);
+  assert.match(banner, /className="rt-hero-composed-image"/);
+  assert.match(banner, /onTouchStart=/);
+  assert.match(banner, /onTouchEnd=/);
+  assert.match(banner, /aria-label="Previous promotion"/);
+  assert.match(banner, /aria-label="Next promotion"/);
   assert.match(banner, /onError=\{\(\) => setBannerImageFailed\(true\)\}/);
+  assert.match(functionalPolish, /\.rt-hero-composed\s*\{[^}]*aspect-ratio:\s*4 \/ 3 !important;/s);
+  assert.match(functionalPolish, /\.rt-hero-composed-backdrop img\s*\{[^}]*object-fit:\s*cover;[^}]*filter:\s*blur\(15px\)/s);
+  assert.match(functionalPolish, /\.rt-hero-composed-image img\s*\{[^}]*object-fit:\s*contain !important;/s);
+  assert.match(css, /\.rt-hero-cta-bar\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*2;[^}]*flex:\s*0 0 auto;/s);
 });

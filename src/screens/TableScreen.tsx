@@ -28,7 +28,7 @@ export const TableScreen: React.FC<TableScreenProps> = ({ onNavigate }) => {
             2026 Price List Table (Spreadsheet View)
           </h1>
           <p className="text-xs sm:text-sm text-stone-400 dark:text-stone-400 light:text-stone-600 mt-1 max-w-xl">
-            This table matches our physical 2026 Sivakasi printed price catalog. You can type numbers directly into the boxes to build large festival orders quickly.
+            This catalogue view lists current reference rates for general product information. Online fireworks orders are not accepted on this website.
           </p>
         </div>
 
@@ -38,7 +38,7 @@ export const TableScreen: React.FC<TableScreenProps> = ({ onNavigate }) => {
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold text-xs shadow-md transition-all self-start md:self-auto cursor-pointer"
           >
             <ShoppingBag className="w-4 h-4" />
-            <span>Go to Cart ({totalBoxes} items · ₹{subtotal.toLocaleString('en-IN')})</span>
+            <span>Review shortlist ({totalBoxes} items · ₹{subtotal.toLocaleString('en-IN')})</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         )}
@@ -49,12 +49,12 @@ export const TableScreen: React.FC<TableScreenProps> = ({ onNavigate }) => {
 
       {/* Footer Banner */}
       <div className="p-4 rounded-xl bg-amber-950/20 dark:bg-amber-950/20 light:bg-amber-50 border border-amber-800/30 text-xs text-stone-400 dark:text-stone-400 light:text-stone-600 flex flex-col sm:flex-row justify-between items-center gap-3">
-        <span>Finished selecting your items? You can review your bill and order on WhatsApp.</span>
+        <span>Use the shortlist for reference, then contact sales for general product information. This site does not accept online fireworks orders.</span>
         <button
           onClick={() => onNavigate('cart')}
           className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg transition-colors cursor-pointer"
         >
-          Review Cart & Order Now
+          Review Product Shortlist
         </button>
       </div>
 

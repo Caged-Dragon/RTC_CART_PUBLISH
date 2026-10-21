@@ -1,6 +1,6 @@
 User-agent: *
 Allow: /
-Disallow: /my-orders
-Disallow: /login
 
+# SPA routes set page-specific robots metadata in the rendered head. Do not block
+# those requests here: search engines need to crawl them to observe noindex where used.
 Sitemap: https://cart.rtcrackers.com/sitemap.xml

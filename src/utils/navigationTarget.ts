@@ -53,9 +53,16 @@ export function navigateToConfiguredTarget(
   if (/^https?:\/\//i.test(value)) {
     try {
       const external = new URL(value);
-      if (external.protocol !== 'https:' && external.protocol !== 'http:') throw new Error('Unsupported URL protocol');
+      const host = external.hostname.toLowerCase();
+      const isOwnedCatalogue = host === 'rtcrackers.com' || host.endsWith('.rtcrackers.com');
+      const looksTransactional = /\/(add|checkout|order|orders|payment|pay|purchase)(\/|$)/i.test(external.pathname);
+      // CMS-managed hero buttons may only leave this app for the owned catalogue domains,
+      // and never to a route that looks like an online transaction.
+      if (!['https:', 'http:'].includes(external.protocol) || !isOwnedCatalogue || looksTransactional) {
+        onNavigate(fallback);
+        return false;
+      }
       const opened = window.open(external.href, '_blank', 'noopener,noreferrer');
-      // Preserve the configured destination even when the browser blocks a new tab.
       if (!opened) window.location.assign(external.href);
       return true;
     } catch {

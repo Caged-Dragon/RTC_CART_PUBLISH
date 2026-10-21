@@ -93,7 +93,7 @@ app.get('/api/info', (_req: Request, res: Response) => {
     categoriesCount: CATEGORIES.length - 1,
     catalogYear: 2026,
     dispatchedFrom: 'Sivakasi Factory Godown, Tamil Nadu',
-    terms: 'Against payment receipt only, crackers will be dispatched from Sivakasi.',
+    terms: 'This catalogue does not accept online fireworks orders or payments; contact the licensed business for lawful offline enquiries.',
   });
 });
 

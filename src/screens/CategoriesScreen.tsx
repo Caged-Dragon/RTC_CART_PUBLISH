@@ -12,7 +12,7 @@ interface CategoriesScreenProps {
 }
 
 export const CategoriesScreen: React.FC<CategoriesScreenProps> = ({ onNavigate }) => {
-  const { categories, isLoading: categoriesLoading } = useCategories();
+  const { categories, isLoading: categoriesLoading, error: categoriesError, refreshCategories } = useCategories();
   const { products, isLoading: productsLoading } = useProducts();
   const [search, setSearch] = useState('');
 
@@ -77,6 +77,12 @@ export const CategoriesScreen: React.FC<CategoriesScreenProps> = ({ onNavigate }
         {isLoading ? (
           <div className="rt-category-page-grid" role="status" aria-label="Loading categories">
             {Array.from({ length: 8 }, (_, index) => <div className="rt-skeleton rt-category-skeleton" key={index} />)}
+          </div>
+        ) : !categories.length && categoriesError ? (
+          <div className="rt-best-sellers-empty" role="alert">
+            <h3>Categories could not be loaded</h3>
+            <p>{categoriesError}</p>
+            <button className="rt-btn rt-btn-primary" onClick={() => { void refreshCategories(); }}>Retry categories <ArrowRight aria-hidden="true" /></button>
           </div>
         ) : categoryCards.length ? (
           <div className="rt-category-page-grid">

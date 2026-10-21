@@ -15,7 +15,7 @@ interface BestSellersScreenProps {
 type SortOrder = 'recommended' | 'price-low' | 'price-high' | 'name';
 
 export const BestSellersScreen: React.FC<BestSellersScreenProps> = ({ onNavigate, onSelectProduct }) => {
-  const { products, isLoading: productsLoading } = useProducts();
+  const { products, isLoading: productsLoading, error: productsError, refreshProducts } = useProducts();
   const { picks, isLoading: picksLoading } = useHomepagePicks();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
@@ -77,6 +77,8 @@ export const BestSellersScreen: React.FC<BestSellersScreenProps> = ({ onNavigate
             <span className="rt-best-sellers-count">{isLoading ? 'Loading picks…' : `${filteredProducts.length} of ${bestSellers.length} products`}</span>
           </div>
 
+          {productsError && <div className="rt-catalogue-refresh-warning" role="status"><span>{productsError}{products.length ? ' Showing the last catalogue available on this device.' : ''}</span><button type="button" onClick={() => { void refreshProducts(); }}>Retry</button></div>}
+
           <div className="rt-best-sellers-toolbar" role="search" aria-label="Filter best sellers">
             <label className="rt-best-sellers-search">
               <Search aria-hidden="true" />
@@ -109,11 +111,11 @@ export const BestSellersScreen: React.FC<BestSellersScreenProps> = ({ onNavigate
             <div className="rt-best-sellers-empty" role="status">
               <span><Flame aria-hidden="true" /></span>
               <h3>{bestSellers.length ? 'No matches found' : 'Best sellers are being prepared'}</h3>
-              <p>{bestSellers.length ? 'Try another search or category, or reset the filters to see the full collection.' : 'The collection will appear when products are marked as best sellers in the live catalogue or published as customer picks.'}</p>
+              <p>{bestSellers.length ? 'Try another search or category, or reset the filters to see the full collection.' : productsError || 'The collection will appear when products are marked as best sellers in the live catalogue or published as customer picks.'}</p>
               {bestSellers.length ? (
                 <button className="rt-btn rt-btn-primary" onClick={() => { setSearch(''); setCategory('All'); setSort('recommended'); }}>Clear Filters</button>
               ) : (
-                <button className="rt-btn rt-btn-primary" onClick={() => onNavigate('products')}>Browse All Products <ArrowRight aria-hidden="true" /></button>
+                productsError ? <button className="rt-btn rt-btn-primary" onClick={() => { void refreshProducts(); }}>Retry Catalogue <ArrowRight aria-hidden="true" /></button> : <button className="rt-btn rt-btn-primary" onClick={() => onNavigate('products')}>Browse All Products <ArrowRight aria-hidden="true" /></button>
               )}
             </div>
           )}

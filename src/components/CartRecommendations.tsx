@@ -42,19 +42,19 @@ export const CartRecommendations: React.FC<CartRecommendationsProps> = ({ onNavi
       <div className="rt-cart-recommendation-head">
         <div>
           <span className="rt-kicker"><Sparkles size={14} /> Build a better celebration</span>
-          <h2 id="cart-recommendations-heading">Complete your order</h2>
+          <h2 id="cart-recommendations-heading">Explore related products</h2>
         </div>
         {onNavigate && <button onClick={onNavigate}>View catalogue</button>}
       </div>
       <div className="rt-cart-recommendation-grid">
         {recommendations.map((product: Product) => (
           <article className="rt-cart-recommendation-card" key={product.id}>
-            <ProductImage product={product} alt="" loading="lazy" decoding="async" />
+            <ProductImage product={product} alt={`${product.name} – Makka & Wheat brand Sivakasi crackers`} loading="lazy" decoding="async" />
             <div className="rt-cart-recommendation-body">
               <span>{product.category}</span>
               <h3>{product.name}</h3>
               <div><strong>₹{product.rate.toLocaleString('en-IN')}</strong><small>{product.unit}</small></div>
-              <button onClick={() => addToCart(product, 1)} aria-label={`Add ${product.name} to cart`}><Plus size={15} /> Add</button>
+              <button onClick={() => addToCart(product, 1)} aria-label={`Add ${product.name} to shortlist`}><Plus size={15} /> Add</button>
             </div>
           </article>
         ))}

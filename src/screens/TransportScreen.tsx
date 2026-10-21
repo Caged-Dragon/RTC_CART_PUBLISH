@@ -207,9 +207,9 @@ export const TransportScreen: React.FC = () => {
             <div className="space-y-3 text-xs text-stone-300 dark:text-stone-300 light:text-stone-700 leading-relaxed">
               <div className="p-3 rounded-lg bg-stone-950 dark:bg-stone-950 light:bg-stone-50 border border-stone-800 dark:border-stone-800 light:border-stone-200">
                 <strong className="text-white dark:text-white light:text-stone-900 block mb-0.5">
-                  1. Payment Receipt Mandatory
+                  1. Direct Confirmation Required
                 </strong>
-                Against payment receipt only, crackers will be dispatched from Sivakasi factory. No COD is permitted under hazardous goods laws.
+                After direct discussion with the licensed sales team and only where permitted by current law, crackers will be dispatched from Sivakasi factory. This website does not take orders or payments. Confirm transport requirements and any lawful offline payment/collection terms directly with the licensed business.
               </div>
 
               <div className="p-3 rounded-lg bg-stone-950 dark:bg-stone-950 light:bg-stone-50 border border-stone-800 dark:border-stone-800 light:border-stone-200">

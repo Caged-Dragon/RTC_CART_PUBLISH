@@ -51,11 +51,11 @@ export const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ produc
                   <button onClick={() => addToCart(product, 1)} aria-label="Increase quantity"><Plus /></button>
                 </div>
               ) : (
-                <button className="rt-btn rt-btn-primary" disabled={product.stockStatus === 'OUT_OF_STOCK'} onClick={() => addToCart(product, 1)} aria-label={`Add ${product.name} to cart`}><ShoppingCart /> Add to Cart</button>
+                <button className="rt-btn rt-btn-primary" disabled={product.stockStatus === 'OUT_OF_STOCK'} onClick={() => addToCart(product, 1)} aria-label={`Add ${product.name} to shortlist`}><ShoppingCart /> Add to shortlist</button>
               )}
-              <button className="rt-btn rt-btn-outline" disabled={product.stockStatus === 'OUT_OF_STOCK'} onClick={openCart} aria-label={`Buy ${product.name} now`}>Buy Now</button>
+              <button className="rt-btn rt-btn-outline" disabled={product.stockStatus === 'OUT_OF_STOCK'} onClick={openCart} aria-label={`Buy ${product.name} now`}>Open shortlist</button>
             </div>
-            <div className="rt-detail-note"><strong>Ordering note</strong><span>Transport charges, availability and final dispatch details are confirmed before payment.</span></div>
+            <div className="rt-detail-note"><strong>Ordering note</strong><span>This is catalogue information only. Contact sales for product information and discuss any permitted offline arrangements directly.</span></div>
 
             <div className="rt-specs">
               <div><span>Product No.</span><strong>#{product.sNo}</strong></div>

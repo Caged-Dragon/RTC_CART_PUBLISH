@@ -7,18 +7,22 @@ import { useCategories } from '../context/CategoriesContext';
 import { useProducts } from '../context/ProductsContext';
 import { useCart } from '../context/CartContext';
 import { ProductDetailScreen } from './ProductDetailScreen';
-import { buildCategorySearch, consumeShopIntent } from '../utils/shopNavigation';
+import { consumeShopIntent } from '../utils/shopNavigation';
 
 const PRICE_BANDS = [
-  { id: 'all', label: 'Any price', min: 0, max: Infinity },
-  { id: 'u100', label: 'Under ₹100', min: 0, max: 100 },
-  { id: 'u250', label: '₹100–₹250', min: 100, max: 250 },
-  { id: 'u500', label: '₹250–₹500', min: 250, max: 500 },
-  { id: 'u1000', label: '₹500–₹1,000', min: 500, max: 1000 },
-  { id: 'u2000', label: '₹1,000–₹2,000', min: 1000, max: 2000 },
-  { id: 'o2000', label: '₹2,000+', min: 2000, max: Infinity },
+  { id: 'all', label: 'Any price', min: 0, max: Infinity, above: false },
+  { id: 'u500', label: 'Up to ₹500', min: 0, max: 500, above: false },
+  { id: 'u1000', label: 'Up to ₹1,000', min: 0, max: 1000, above: false },
+  { id: 'u1500', label: 'Up to ₹1,500', min: 0, max: 1500, above: false },
+  { id: 'o1500', label: 'Over ₹1,500', min: 1500, max: Infinity, above: true },
 ] as const;
 type PriceBand = (typeof PRICE_BANDS)[number]['id'];
+
+function normalizePriceBand(value: string | null | undefined): PriceBand {
+  const aliases: Record<string, PriceBand> = { u100: 'u500', u250: 'u500', u2000: 'u1500', o2000: 'o1500' };
+  const normalized = value ? aliases[value] || value : 'all';
+  return PRICE_BANDS.some((band) => band.id === normalized) ? normalized as PriceBand : 'all';
+}
 type Availability = 'all' | 'in' | 'low';
 type PackType = 'all' | 'Box' | 'Pkt' | 'Tube';
 type PieceBand = 'all' | '1-10' | '11-25' | '26-50' | '51+';
@@ -47,12 +51,12 @@ const matchesTag = (product: Product, tag: SmartTag) => {
 };
 
 export const ProductsScreen: React.FC = () => {
-  const { products, isLoading } = useProducts();
+  const { products, isLoading, error: productsError, refreshProducts } = useProducts();
   const { categories } = useCategories();
   const { totalBoxes, subtotal, setIsCartOpen } = useCart();
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => { const params = new URLSearchParams(window.location.search); return params.get('q') || params.get('search') || ''; });
   const [selectedCategory, setSelectedCategory] = useState(() => new URLSearchParams(window.location.search).get('category') || 'All');
-  const [priceBand, setPriceBand] = useState<PriceBand>('all');
+  const [priceBand, setPriceBand] = useState<PriceBand>(() => normalizePriceBand(new URLSearchParams(window.location.search).get('budget')));
   const [availability, setAvailability] = useState<Availability>('all');
   const [packType, setPackType] = useState<PackType>('all');
   const [pieceBand, setPieceBand] = useState<PieceBand>('all');
@@ -67,7 +71,7 @@ export const ProductsScreen: React.FC = () => {
   useEffect(() => {
     const setSearchFromEvent = (event: Event) => setSearch((event as CustomEvent<string>).detail || '');
     const setCategoryFromEvent = (event: Event) => { setSelectedCategory((event as CustomEvent<string>).detail || 'All'); setBestOnly(false); };
-    const setBudgetFromEvent = (event: Event) => { const budget = (event as CustomEvent<string>).detail as PriceBand; setPriceBand(PRICE_BANDS.some((band) => band.id === budget) ? budget : 'all'); };
+    const setBudgetFromEvent = (event: Event) => { const budget = (event as CustomEvent<string>).detail; setPriceBand(normalizePriceBand(budget)); };
     const setBest = () => setBestOnly(true);
     const focusProductSearch = () => document.querySelector<HTMLInputElement>('.rt-shop-toolbar-search input')?.focus();
     const resetAllFromEvent = () => {
@@ -89,7 +93,7 @@ export const ProductsScreen: React.FC = () => {
     } else if (pending?.type === 'all') resetAllFromEvent();
     else if (pending?.type === 'search') setSearch(pending.value);
     else if (pending?.type === 'category') setSelectedCategory(pending.value);
-    if (pending?.type === 'budget') setPriceBand(PRICE_BANDS.some((band) => band.id === pending.value) ? pending.value as PriceBand : 'all');
+    if (pending?.type === 'budget') setPriceBand(normalizePriceBand(pending.value));
     if (pending?.type === 'best-sellers') setBestOnly(true);
     const syncDetailFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
@@ -116,18 +120,26 @@ export const ProductsScreen: React.FC = () => {
     };
   }, [products, categories]);
 
-  // Make category filters shareable and persistent across refreshes and browser back/forward.
+  // Keep search, category and budget filters shareable and persistent after refresh.
   useEffect(() => {
     if (window.location.pathname !== '/products') return;
-    const searchParams = buildCategorySearch(window.location.search, selectedCategory);
-    const next = `${window.location.pathname}${searchParams}${window.location.hash}`;
+    const params = new URLSearchParams(window.location.search);
+    if (selectedCategory === 'All') params.delete('category');
+    else params.set('category', selectedCategory);
+    if (priceBand === 'all') params.delete('budget');
+    else params.set('budget', priceBand);
+    if (search.trim()) params.set('q', search.trim());
+    else params.delete('q');
+    params.delete('search');
+    const query = params.toString();
+    const next = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
     const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     if (next !== current) window.history.replaceState({ ...(window.history.state || {}), screen: 'products' }, '', next);
-  }, [selectedCategory]);
+  }, [selectedCategory, priceBand, search]);
 
   const categoryNames = useMemo(() => ['All', ...categories.filter((c) => c.is_active).map((c) => c.category_name)], [categories]);
   const activeFilterCount = [selectedCategory !== 'All', priceBand !== 'all', availability !== 'all', packType !== 'all', pieceBand !== 'all', smartTag !== 'all', greenOnly, bestOnly, featuredOnly, !!search].filter(Boolean).length;
-  const resetFilters = () => { setSearch(''); setSelectedCategory('All'); setPriceBand('all'); setAvailability('all'); setPackType('all'); setPieceBand('all'); setSmartTag('all'); setGreenOnly(false); setBestOnly(false); setFeaturedOnly(false); };
+  const resetFilters = () => { setSearch(''); setSelectedCategory('All'); setPriceBand('all'); setAvailability('all'); setPackType('all'); setPieceBand('all'); setSmartTag('all'); setGreenOnly(false); setBestOnly(false); setFeaturedOnly(false); setSort('recommended'); };
 
   const filtered = useMemo(() => {
     const band = PRICE_BANDS.find((item) => item.id === priceBand) || PRICE_BANDS[0];
@@ -141,7 +153,7 @@ export const ProductsScreen: React.FC = () => {
     return products.filter((product) => {
       const text = `${normalize(product.name)} ${normalize(product.category)} ${normalize(product.description)}`;
       if (selectedCategory !== 'All' && normalize(product.category).trim() !== normalize(selectedCategory).trim()) return false;
-      if (!(product.rate >= band.min && product.rate < band.max + (band.max === Infinity ? 1 : 0))) return false;
+      if (band.above ? product.rate <= band.min : product.rate > band.max) return false;
       if (availability === 'in' && product.stockStatus === 'OUT_OF_STOCK') return false;
       if (availability === 'low' && product.stockStatus !== 'LOW_STOCK') return false;
       if (packType !== 'all' && product.unit !== packType) return false;
@@ -156,7 +168,16 @@ export const ProductsScreen: React.FC = () => {
   }, [products, selectedCategory, priceBand, availability, packType, pieceBand, smartTag, greenOnly, bestOnly, featuredOnly, search, sort]);
 
   const openDetail = (product: Product) => { setSelectedProduct(product); window.history.pushState({ product: product.id }, '', `/product/${product.id}`); };
-  const closeDetail = () => { setSelectedProduct(null); window.history.pushState({}, '', '/products'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const closeDetail = () => {
+    setSelectedProduct(null);
+    const params = new URLSearchParams();
+    if (selectedCategory !== 'All') params.set('category', selectedCategory);
+    if (priceBand !== 'all') params.set('budget', priceBand);
+    if (search.trim()) params.set('q', search.trim());
+    const query = params.toString();
+    window.history.pushState({ screen: 'products' }, '', `/products${query ? `?${query}` : ''}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   const FilterControls = () => <>
     <div className="rt-smart-filter-highlight"><Sparkles /><div><strong>Smart shopping filters</strong><small>20+ ways to narrow the catalogue without losing the festive feel.</small></div></div>
     <div className="rt-filter-group"><label>Smart picks</label><div className="rt-filter-chip-grid">{SMART_TAGS.map((tag) => <button key={tag.id} className={smartTag === tag.id ? 'selected' : ''} onClick={() => setSmartTag(tag.id)}>{tag.label}</button>)}</div></div>
@@ -183,7 +204,8 @@ export const ProductsScreen: React.FC = () => {
         <div className="rt-shop-results">
           <div className="rt-shop-toolbar"><div className="rt-shop-toolbar-search"><Search aria-hidden="true" /><input value={search} onChange={(event) => setSearch(event.target.value)} aria-label="Search products in catalogue" placeholder="Search products, categories or product number" />{search && <button type="button" onClick={() => setSearch('')} aria-label="Clear product search"><X /></button>}</div><div className="rt-result-count"><strong>{filtered.length}</strong> products {activeFilterCount > 0 && <span>· {activeFilterCount} filters</span>}</div><div className="rt-toolbar-actions"><button className="rt-mobile-filter-btn" onClick={() => setFiltersOpen(true)}><SlidersHorizontal /> Filters {activeFilterCount > 0 && <b>{activeFilterCount}</b>}</button><label className="rt-sort"><span>Sort:</span><select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}><option value="recommended">Recommended</option><option value="low">Price: Low to High</option><option value="high">Price: High to Low</option><option value="name">Name A–Z</option></select><ChevronDown /></label></div></div>
           <div className="rt-filter-summary"><span><Zap /> {filtered.length} matching products</span>{activeFilterCount > 0 && <button onClick={resetFilters}>Clear {activeFilterCount} filters <X /></button>}</div>
-          {isLoading ? <div className="rt-product-grid">{Array.from({ length: 8 }).map((_, index) => <div className="rt-skeleton rt-product-skeleton" key={index} />)}</div> : filtered.length ? <div className="rt-product-grid">{filtered.map((product) => <ProductCard key={product.id} product={product} onViewDetails={() => openDetail(product)} />)}</div> : <div className="rt-empty-state"><Package /><h2>No products found</h2><p>Try a broader smart filter or clear your filters.</p><button onClick={resetFilters}>Reset filters</button></div>}
+          {productsError && products.length > 0 && <div className="rt-catalogue-refresh-warning" role="status"><span>{productsError} Showing the last catalogue available on this device.</span><button type="button" onClick={() => { void refreshProducts(); }}>Retry</button></div>}
+          {isLoading ? <div className="rt-product-grid">{Array.from({ length: 8 }).map((_, index) => <div className="rt-skeleton rt-product-skeleton" key={index} />)}</div> : filtered.length ? <div className="rt-product-grid">{filtered.map((product) => <ProductCard key={product.id} product={product} onViewDetails={() => openDetail(product)} />)}</div> : productsError && !products.length ? <div className="rt-empty-state" role="alert"><Package /><h2>Catalogue unavailable</h2><p>{productsError}</p><button type="button" onClick={() => { void refreshProducts(); }}>Try again</button></div> : <div className="rt-empty-state"><Package /><h2>No products found</h2><p>Try a broader smart filter or clear your filters.</p><button onClick={resetFilters}>Reset filters</button></div>}
         </div>
       </div>
     </div>

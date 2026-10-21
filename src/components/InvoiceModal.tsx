@@ -28,7 +28,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
     month: 'long',
     year: 'numeric',
   });
-  const orderIdStr = order ? order.orderId : 'RT-2026-ESTIMATE';
+  const orderIdStr = order ? order.orderId : 'CATALOGUE-REFERENCE';
 
   const handlePrint = () => {
     window.print();
@@ -69,7 +69,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
         pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, imgHeight, undefined, 'FAST');
       }
 
-      pdf.save(`RedThunder_Crackers_Invoice_${orderIdStr}.pdf`);
+      pdf.save(`RedThunder_Catalogue_Reference_${orderIdStr}.pdf`);
       setDownloadSuccess(true);
       setTimeout(() => setDownloadSuccess(false), 3000);
     } catch (err) {
@@ -88,10 +88,10 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
         <div className="no-print p-4 sm:p-5 bg-stone-900 border-b border-stone-800 text-stone-200 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="font-display font-bold text-white text-sm sm:text-base">
-              Official 2026 Order Estimate & Invoice
+              Product Shortlist Reference — Not an Order
             </span>
             <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded font-mono font-bold">
-              PROFORMA
+              REFERENCE ONLY
             </span>
           </div>
 
@@ -101,7 +101,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
               onClick={handleDownloadPDF}
               disabled={isDownloading}
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
-              title="Download professional PDF invoice document"
+              title="Download non-binding product shortlist reference"
             >
               {isDownloading ? (
                 <>
@@ -125,7 +125,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
             <button
               onClick={handlePrint}
               className="px-3.5 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 hover:text-white border border-stone-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Print invoice or browser save"
+              title="Print product shortlist reference"
             >
               <Printer className="w-3.5 h-3.5 text-stone-400" />
               <span>Print</span>
@@ -141,7 +141,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
           </div>
         </div>
 
-        {/* Printable & PDF Capture Invoice Sheet */}
+        {/* Printable product shortlist reference */}
         <div ref={invoiceRef} id="printable-invoice-sheet" className="p-6 sm:p-8 space-y-6 text-stone-800 bg-white">
           
           {/* Header */}
@@ -153,7 +153,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
                 </span>
               </div>
               <p className="text-xs font-bold text-amber-700 uppercase tracking-widest">
-                2026 Product Catalog & Direct Factory Godown • Sivakasi
+                Makka & Wheat brand catalogue • Sivakasi
               </p>
               <p className="text-xs text-stone-600 mt-1 max-w-sm leading-relaxed">
                 {STORE_INFO.address},<br />
@@ -167,7 +167,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
 
             <div className="text-left sm:text-right">
               <span className="inline-block px-3 py-1 text-xs font-black bg-red-100 text-red-800 rounded-lg border border-red-200">
-                PROFORMA ESTIMATE
+                REFERENCE ONLY ESTIMATE
               </span>
               <p className="font-mono text-sm font-black text-stone-900 mt-2">
                 #{orderIdStr}
@@ -185,15 +185,15 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-stone-50 border border-stone-200 text-xs">
             <div>
               <span className="font-bold text-stone-500 uppercase tracking-wider block text-[10px]">
-                Consignee / Customer Details:
+                Shortlist reference only:
               </span>
               <p className="font-bold text-sm text-stone-900 mt-1">
-                {customerToDisplay.name || 'Valued Festival Customer'}
+                {order ? (customerToDisplay.name || 'Customer on historical record') : 'Not collected on this website'}
               </p>
               <p className="text-stone-700 mt-0.5 font-mono">
-                Phone: {customerToDisplay.phone || '+91 - Verified via WhatsApp'}
+                Phone: {order ? (customerToDisplay.phone || 'Not recorded') : 'Not collected on this website'}
               </p>
-              {customerToDisplay.email && (
+              {order && customerToDisplay.email && (
                 <p className="text-stone-500 text-[11px] mt-0.5">
                   Email: {customerToDisplay.email}
                 </p>
@@ -202,19 +202,19 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
 
             <div>
               <span className="font-bold text-stone-500 uppercase tracking-wider block text-[10px]">
-                Delivery Destination & Transport Hub:
+                Delivery details are not collected on this site:
               </span>
               <p className="font-bold text-stone-800 mt-1">
-                {customerToDisplay.city ? `${customerToDisplay.city}, ${customerToDisplay.state}` : 'City Destination to be confirmed'}
-                {customerToDisplay.pincode ? ` - ${customerToDisplay.pincode}` : ''}
+                {order ? (customerToDisplay.city ? `${customerToDisplay.city}, ${customerToDisplay.state}` : 'City destination not recorded') : 'No delivery destination collected'}
+                {order && customerToDisplay.pincode ? ` - ${customerToDisplay.pincode}` : ''}
               </p>
-              {customerToDisplay.address && (
+              {order && customerToDisplay.address && (
                 <p className="text-stone-600 mt-0.5 text-[11px] truncate">
                   {customerToDisplay.address}
                 </p>
               )}
               <p className="text-amber-800 font-semibold mt-1 text-[11px] bg-amber-50 p-1.5 rounded border border-amber-200">
-                Lorry Mode: {customerToDisplay.transportPreference}
+                Transport: discuss directly with sales {customerToDisplay.transportPreference}
               </p>
             </div>
           </div>
@@ -267,10 +267,10 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
           {/* Totals Summary */}
           <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pt-2">
             <div className="text-xs text-stone-600 space-y-1.5 max-w-sm">
-              <p className="font-bold text-stone-800">Important Sivakasi Despatch Terms:</p>
-              <p>• Against 100% advance payment receipt only, crackers will be dispatched from Sivakasi factory.</p>
-              <p>• Transport lorry freight is collected at the destination parcel office (To-Pay basis).</p>
-              <p>• Certified Green Crackers under Supreme Court & CSIR-NEERI norms.</p>
+              <p className="font-bold text-stone-800">Important catalogue note:</p>
+              <p>• Product enquiry reference only—not an invoice, order, reservation or dispatch confirmation. This website does not accept online fireworks orders or payments.</p>
+              <p>• Prices and availability are references only; transport and lawful fulfilment must be confirmed directly.</p>
+              <p>• Confirm product certifications and applicable safety requirements with the licensed business.</p>
             </div>
 
             <div className="w-full sm:w-72 space-y-2 text-xs border border-stone-200 rounded-2xl p-4 bg-stone-50">
@@ -283,11 +283,11 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
                 <span className="font-bold text-stone-800">{totalBoxesToDisplay} boxes/pkts</span>
               </div>
               <div className="flex justify-between text-stone-600">
-                <span>Lorry Freight:</span>
-                <span className="font-semibold text-stone-800">To Pay at Destination</span>
+                <span>Freight:</span>
+                <span className="font-semibold text-stone-800">To be discussed directly</span>
               </div>
               <div className="flex justify-between text-sm font-bold text-stone-900 pt-2 border-t border-stone-200">
-                <span>Estimated Net Total:</span>
+                <span>Reference subtotal:</span>
                 <span className="text-red-600 text-lg tabular-nums font-black">
                   ₹{subtotalToDisplay.toLocaleString('en-IN')}
                 </span>
@@ -301,7 +301,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, ord
               <span>REDTHUNDER CRACKERS, Sivakasi • Genuine 2026 Factory Prices • Safe Celebrations</span>
             </div>
             <div className="text-right font-semibold text-stone-800">
-              WhatsApp Booking: {STORE_INFO.phoneDisplay}
+              WhatsApp Support: {STORE_INFO.phoneDisplay}
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-import { dbSelect, dbSelectSWR } from './lib/supabase';
+import { dbSelect } from './lib/supabase';
 
 export type ThemePage = {
   website_key: string;
@@ -31,29 +31,51 @@ const FALLBACK: ThemePage = {
 
 const safeText = (value: unknown, fallback = '') => typeof value === 'string' && value.length < 500 && !/[<>]/.test(value) ? value : fallback;
 
+function themeFromDatabase(row: any, page: string): ThemePage {
+  const colors = row?.colors && typeof row.colors === 'object' ? row.colors : {};
+  const light = colors.light && typeof colors.light === 'object' ? colors.light : {};
+  const dark = colors.dark && typeof colors.dark === 'object' ? colors.dark : {};
+  const typography = row?.typography && typeof row.typography === 'object' ? row.typography : {};
+  const value = (source: Record<string, any>, key: string, fallback: string) => safeText(source[key], fallback);
+  return {
+    ...FALLBACK,
+    website_key: 'cart', page_key: page, page_name: safeText(row?.theme_name, 'RT Crackers Canonical Brand Theme'), is_active: true, mode: 'light',
+    background_color: value(light, 'background', FALLBACK.background_color),
+    surface_color: value(light, 'surface', FALLBACK.surface_color),
+    surface_elevated_color: value(light, 'surface', FALLBACK.surface_elevated_color),
+    section_color: value(light, 'surface_variant', FALLBACK.section_color),
+    header_color: value(light, 'surface', FALLBACK.header_color), footer_color: value(dark, 'background', FALLBACK.footer_color),
+    text_color: value(light, 'text', FALLBACK.text_color), muted_text_color: value(light, 'text_muted', FALLBACK.muted_text_color),
+    heading_color: value(light, 'text', FALLBACK.heading_color), primary_color: value(light, 'primary', FALLBACK.primary_color),
+    primary_dark_color: value(light, 'primary_dark', FALLBACK.primary_dark_color), secondary_color: value(light, 'brand_blue', FALLBACK.secondary_color),
+    accent_color: value(light, 'accent', FALLBACK.accent_color), link_color: value(light, 'primary_dark', FALLBACK.link_color),
+    button_background_color: value(light, 'primary', FALLBACK.button_background_color), button_text_color: '#ffffff',
+    border_color: value(light, 'border', FALLBACK.border_color), border_strong_color: value(light, 'border', FALLBACK.border_strong_color),
+    input_background_color: value(light, 'surface', FALLBACK.input_background_color), input_border_color: value(light, 'border', FALLBACK.input_border_color),
+    card_shadow_color: 'rgba(16,24,40,.08)', hero_background_color: value(dark, 'background', FALLBACK.hero_background_color),
+    banner_background_color: value(light, 'surface_variant', FALLBACK.banner_background_color),
+    nav_background_color: value(light, 'surface', FALLBACK.nav_background_color), nav_text_color: value(light, 'text', FALLBACK.nav_text_color),
+    font_heading: value(typography, 'font_family_heading', value(typography, 'font_family_primary', FALLBACK.font_heading)),
+    font_body: value(typography, 'font_family_body', value(typography, 'font_family_primary', FALLBACK.font_body)),
+    component_tokens: null, custom_css: null,
+  };
+}
+
 export async function loadThemePage(website: string, page: string): Promise<ThemePage> {
-  if (website !== 'cart') return FALLBACK;
+  if (website !== 'cart') return { ...FALLBACK, page_key: page };
   try {
-    const rows = await dbSelect<ThemePage>(
-      'theme_page_settings',
-      `select=*&website_key=eq.cart&page_key=eq.${encodeURIComponent(page)}&is_active=eq.true&limit=1`,
-    );
-    const row = rows[0];
-    return row ? { ...FALLBACK, ...row, website_key: 'cart', page_key: page } : { ...FALLBACK, page_key: page };
-  } catch {
+    const rows = await dbSelect<any>('web_themes', 'select=theme_key,theme_name,colors,typography,is_active,is_default&is_active=eq.true&is_default=eq.true&limit=1');
+    return rows[0] ? themeFromDatabase(rows[0], page) : { ...FALLBACK, page_key: page };
+  } catch (error) {
+    console.warn('Could not load the shared database theme; using the documented brand fallback.', error);
     return { ...FALLBACK, page_key: page };
   }
 }
 
-/** Same result as loadThemePage, but paints the saved copy immediately and re-applies only if the theme changed. */
 export async function loadThemePageSWR(website: string, page: string, apply: (theme: ThemePage) => void): Promise<void> {
-  if (website !== 'cart') { apply(FALLBACK); return; }
-  const shape = (rows: ThemePage[]): ThemePage => (rows[0] ? { ...FALLBACK, ...rows[0], website_key: 'cart', page_key: page } : { ...FALLBACK, page_key: page });
-  try {
-    await dbSelectSWR<ThemePage>('theme_page_settings', `select=*&website_key=eq.cart&page_key=eq.${encodeURIComponent(page)}&is_active=eq.true&limit=1`, (rows) => apply(shape(rows)));
-  } catch {
-    apply({ ...FALLBACK, page_key: page });
-  }
+  apply({ ...FALLBACK, page_key: page });
+  const loaded = await loadThemePage(website, page);
+  apply(loaded);
 }
 
 export function applyThemeVars(theme: ThemePage) {
@@ -80,9 +102,8 @@ export function applyThemeVars(theme: ThemePage) {
 type ComponentStyleRow = Record<string, unknown> & { component_key?: string };
 
 /**
- * Reads component-level style tokens from fields already available on theme_page_settings.
- * This intentionally does NOT query or create a second table, so the shared Supabase schema
- * remains untouched and each site's styles stay isolated by website_key = 'cart'.
+ * Applies only component tokens already present in the loaded theme object.
+ * The shared production schema uses web_themes; no unsupported per-page theme table is queried.
  */
 export function applyComponentStyles(theme: ThemePage) {
   const root = document.documentElement;

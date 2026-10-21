@@ -84,6 +84,10 @@
   ],
   "rewrites": [
     {
+      "source": "/add",
+      "destination": "/index.html"
+    },
+    {
       "source": "/products",
       "destination": "/index.html"
     },
@@ -154,6 +158,28 @@
     {
       "source": "/product/:productId",
       "destination": "/index.html"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/checkout",
+      "destination": "/products",
+      "permanent": true
+    },
+    {
+      "source": "/confirmation",
+      "destination": "/products",
+      "permanent": true
+    },
+    {
+      "source": "/orders",
+      "destination": "/my-orders",
+      "permanent": true
+    },
+    {
+      "source": "/order",
+      "destination": "/my-orders",
+      "permanent": true
     }
   ]
 }

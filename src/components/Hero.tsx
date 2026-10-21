@@ -36,7 +36,7 @@ export const Hero: React.FC<HeroProps> = ({ onExploreCatalog, onExploreTable }) 
             <span className="text-stone-500" aria-hidden="true">·</span>
             <span className="flex items-center gap-1 text-emerald-400">
               <ShieldCheck className="w-3.5 h-3.5" />
-              Direct Factory Dispatches
+              Sivakasi Catalogue
             </span>
           </div>
 
@@ -47,7 +47,7 @@ export const Hero: React.FC<HeroProps> = ({ onExploreCatalog, onExploreTable }) 
 
           <p data-rtc-component="hero_paragraph" className="text-base sm:text-lg text-stone-300 leading-relaxed mb-8 max-w-2xl">
             Complete wholesale & retail 2026 catalog from <strong className="text-white font-semibold">{STORE_INFO.name}</strong>. 
-            Choose your favorites, create an itemized cart, and send your order directly to our Sivakasi booking team via WhatsApp.
+            Browse the product catalogue and keep a local shortlist for reference. For general product information, contact the licensed sales team directly.
           </p>
 
           {/* Action CTAs */}
@@ -65,7 +65,7 @@ export const Hero: React.FC<HeroProps> = ({ onExploreCatalog, onExploreTable }) 
               className="px-5 py-3.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-stone-200 border border-stone-700/80 font-medium text-sm transition-colors flex items-center gap-2 cursor-pointer"
             >
               <FileSpreadsheet className="w-4 h-4 text-amber-400" />
-              <span>Bulk Order Sheet (PDF Style)</span>
+              <span>Product Price List</span>
             </button>
 
             <a

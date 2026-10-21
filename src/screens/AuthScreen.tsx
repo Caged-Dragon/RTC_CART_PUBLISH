@@ -48,7 +48,7 @@ function friendlyAuthError(error: unknown, mode: AuthMode): string {
     return 'This mobile number is already registered to another account. Use the number linked to your account, or contact support if this is your number.';
   }
   if (/redirect_uri_mismatch|redirect uri mismatch|redirect url mismatch/.test(normalized)) {
-    return 'The identity provider rejected its callback URL. In the Google, Facebook or Microsoft app, set the callback to https://ypmiinmkyvzdpakbkers.supabase.co/auth/v1/callback; separately allow your website URL in Supabase Authentication → URL Configuration.';
+    return 'The identity provider rejected its callback URL. In the Google, Facebook or Microsoft app, set the callback to https://hhbpyxhtksgbkaigeutl.supabase.co/auth/v1/callback; separately allow your website URL in Supabase Authentication → URL Configuration.';
   }
   if (/invalid_client|invalid client|client_secret|client_id|oauth provider.*(configuration|rejected)/.test(normalized)) {
     return 'The provider rejected its OAuth configuration. Check the provider Client ID and Secret in Supabase Authentication → Sign In / Providers.';
@@ -264,7 +264,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
   };
 
   const handleGuestCheckout = () => {
-    setMessage('info', 'You can browse and check out as a guest. Sign in is only needed for account-specific features.');
+    setMessage('info', 'You can continue browsing the catalogue and keep a local shortlist without signing in. No online order is submitted.');
     onNavigate('cart');
   };
 
@@ -364,7 +364,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onNavigate }) => {
 
                 {(oauthProvidersLoading || enabledOAuthProviders.length > 0 || oauthProvidersError) && <div className="rt-auth-oauth"><div className="rt-auth-divider"><span>Or continue with</span></div>{oauthProvidersLoading ? <p className="rt-auth-muted" role="status"><LoaderCircle className="animate-spin" /> Checking available providers…</p> : enabledOAuthProviders.length ? <div className="rt-auth-provider-grid">{enabledOAuthProviders.map((provider) => <button type="button" key={provider.id} onClick={() => void handleProviderLogin(provider.id)} disabled={isSubmitting} aria-busy={isSubmitting}>{providerIcon(provider.id)}<span>Continue with {provider.label}</span></button>)}</div> : <p className="rt-auth-muted" role="status">{oauthProvidersError ? 'We could not load social sign-in options. Refresh the page or try email sign-in.' : 'No social sign-in providers are currently enabled.'}</p>}</div>}
 
-                <div className="rt-auth-guest"><span>Just browsing?</span><button type="button" onClick={handleGuestCheckout}>Continue as guest <ArrowRight aria-hidden="true" /></button></div>
+                <div className="rt-auth-guest"><span>Just browsing?</span><button type="button" onClick={handleGuestCheckout}>Continue to catalogue <ArrowRight aria-hidden="true" /></button></div>
                 <p className="rt-auth-privacy"><ShieldCheck aria-hidden="true" /> Your password is sent directly to Supabase Auth. It is never stored in your customer profile.</p>
               </>
             )}

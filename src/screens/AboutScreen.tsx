@@ -30,8 +30,8 @@ export const AboutScreen: React.FC<{ onNavigate: (screen: ScreenId) => void }> =
           {[
             [Factory, 'Factory direct', 'Live catalogue rates are read from the shared products database.'],
             [BadgeCheck, 'Quality focused', 'Product and stock information stays tied to the existing catalogue.'],
-            [HeartHandshake, 'Human support', 'WhatsApp and phone support stay one tap away during ordering.'],
-            [ShieldCheck, 'Safe ordering', 'Safety guidance, dispatch notes and customer support remain part of the storefront.'],
+            [HeartHandshake, 'Human support', 'WhatsApp and phone support stay one tap away for product enquiries.'],
+            [ShieldCheck, 'Safe ordering', 'Safety guidance, general product information and customer support remain available.'],
           ].map(([Icon, title, text]) => {
             const C = Icon as typeof Factory;
             return <article key={title as string} className="rt-info-card"><C /><h2>{title as string}</h2><p>{text as string}</p></article>;
@@ -43,7 +43,7 @@ export const AboutScreen: React.FC<{ onNavigate: (screen: ScreenId) => void }> =
             <span className="rt-kicker">Built for festive shopping</span>
             <h2>Everything important stays connected to your existing store.</h2>
           </div>
-          <p>The redesigned frontend changes the presentation, navigation and responsive experience. Your live product catalogue, categories, merchant rules, authentication, cart calculations and order booking continue to come from the existing integrations.</p>
+          <p>The redesigned frontend changes the presentation, navigation and responsive experience. The product catalogue, categories and account history continue to use the existing integrations. The public storefront is now catalogue/enquiry-only and does not create new online firework orders.</p>
         </div>
 
         <div className="rt-info-values">

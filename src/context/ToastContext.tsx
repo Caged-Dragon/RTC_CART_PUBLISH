@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { CheckCircle2, ShoppingBag, Sparkles, X, AlertCircle, Info, ArrowRight } from 'lucide-react';
 
-export type ToastType = 'success' | 'order' | 'info' | 'warning' | 'error';
+export type ToastType = 'success' | 'info' | 'warning' | 'error';
 
 export interface ToastAction {
   label: string;
@@ -28,7 +28,6 @@ interface ToastContextType {
   showToast: (options: ToastOptions) => string;
   dismissToast: (id: string) => void;
   success: (message: string, title?: string, action?: ToastAction) => string;
-  orderSubmitted: (orderId: string, amount: number, action?: ToastAction) => string;
   addedToCart: (productName: string, quantity: number, unit: string, rate: number, image?: string, onViewCart?: () => void) => string;
 }
 
@@ -72,19 +71,6 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [showToast]
   );
 
-  const orderSubmitted = useCallback(
-    (orderId: string, amount: number, action?: ToastAction) => {
-      return showToast({
-        type: 'order',
-        title: '🎉 Order Placed Successfully!',
-        message: `Order #${orderId} for ₹${amount.toLocaleString('en-IN')} submitted for Sivakasi packing & dispatch.`,
-        duration: 5500,
-        action,
-      });
-    },
-    [showToast]
-  );
-
   const addedToCart = useCallback(
     (productName: string, quantity: number, unit: string, rate: number, image?: string, onViewCart?: () => void) => {
       return showToast({
@@ -106,7 +92,6 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         showToast,
         dismissToast,
         success,
-        orderSubmitted,
         addedToCart,
       }}
     >
@@ -122,9 +107,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             key={toast.id}
             role="status"
             className={`pointer-events-auto w-full max-w-sm rounded-2xl p-3.5 sm:p-4 shadow-2xl border transition-all duration-300 animate-in slide-in-from-top-4 sm:slide-in-from-right-4 fade-in ${
-              toast.type === 'order'
-                ? 'bg-gradient-to-r from-stone-900 via-amber-950 to-stone-900 border-amber-500 text-stone-100 shadow-amber-950/40 ring-1 ring-amber-500/50'
-                : toast.type === 'success'
+              toast.type === 'success'
                 ? 'bg-stone-900 dark:bg-stone-900 light:bg-white border-emerald-500/60 dark:border-emerald-500/60 light:border-emerald-500 text-stone-100 dark:text-stone-100 light:text-stone-900 shadow-emerald-950/30'
                 : toast.type === 'error'
                 ? 'bg-stone-900 dark:bg-stone-900 light:bg-white border-red-500 text-stone-100 dark:text-stone-100 light:text-stone-900'

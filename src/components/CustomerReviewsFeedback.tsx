@@ -250,7 +250,7 @@ export const CustomerReviewsFeedback: React.FC<CustomerReviewsFeedbackProps> = (
               {/* Star Rating Picker */}
               <div className="p-4 rounded-2xl bg-stone-950 border border-stone-800 space-y-2">
                 <label className="block text-stone-300 font-bold">
-                  How would you rate your crackers and ordering experience? <span className="text-red-400">*</span>
+                  How would you rate the products and customer-support experience? <span className="text-red-400">*</span>
                 </label>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1">

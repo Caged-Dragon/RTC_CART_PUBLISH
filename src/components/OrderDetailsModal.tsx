@@ -422,7 +422,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           {/* Financial Breakdown Summary */}
           <div className="p-4 rounded-2xl bg-stone-950 border border-stone-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="text-xs text-stone-400 space-y-1">
-              <div>Payment Terms: <strong>100% Advance Payment Receipt before Godown Despatch</strong></div>
+              <div>Payment Terms: <strong>Historical record only; refer to the original terms agreed for this recorded order. This website does not accept new online fireworks orders.</strong></div>
               <div>Lorry Freight: <strong>To-Pay at Destination Parcel Office</strong></div>
             </div>
 
